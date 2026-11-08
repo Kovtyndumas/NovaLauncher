@@ -1,0 +1,52 @@
+name: Publish tested build
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Successful Build Nova run ID
+        required: true
+        type: string
+      artifact_name:
+        description: Exact installer artifact name
+        required: true
+        type: string
+      tag:
+        description: Existing release tag matching the build commit
+        required: true
+        type: string
+permissions:
+  contents: write
+  actions: read
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      RELEASE_TAG: ${{ inputs.tag }}
+      BUILD_RUN: ${{ inputs.run_id }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.tag }}
+      - name: Verify tested commit and version
+        shell: bash
+        run: |
+          [[ "$BUILD_RUN" =~ ^[0-9]+$ ]]
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          test "$(gh run view "$BUILD_RUN" --repo "$GITHUB_REPOSITORY" --json conclusion --jq .conclusion)" = success
+          test "$(git rev-parse HEAD)" = "$(gh run view "$BUILD_RUN" --repo "$GITHUB_REPOSITORY" --json headSha --jq .headSha)"
+          node -e "if ('v'+require('./package.json').version !== process.env.RELEASE_TAG) throw Error('Release version mismatch')"
+      - uses: actions/download-artifact@v5
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ inputs.run_id }}
+          name: ${{ inputs.artifact_name }}
+          path: release-files
+      - name: Attach installers to existing release
+        shell: bash
+        run: |
+          shopt -s nullglob
+          files=(release-files/*.dmg release-files/*.zip release-files/*.exe release-files/*.AppImage release-files/*.blockmap release-files/latest*.yml)
+          test "${#files[@]}" -gt 0
+          gh release upload "$RELEASE_TAG" "${files[@]}" --repo "$GITHUB_REPOSITORY"
