@@ -11,36 +11,8 @@
 
 ## Запуск
 
-Установите Node.js LTS, затем в папке проекта:
+https://github.com/Kovtyndumas/NovaLauncher/releases/tag/v1.0.1
 
-```sh
-npm ci
-npm start
-```
-
-## Проверки
-
-```sh
-npm test
-npm run test:ui
-```
-
-Проверка настоящего main/preload с временной базой и доступом к каталогу Mojang: `npm run test:main`.
-
-## Автоматическая сборка на GitHub
-
-Каждый push в `main` запускает [Build Nova](https://github.com/Kovtyndumas/NovaLauncher/actions): тесты и сборку Windows, macOS и Linux. Откройте завершённый запуск и скачайте нужный архив из **Artifacts**: Nova-Windows, Nova-macOS или Nova-Linux. Артефакты хранятся 14 дней. Вручную сборка запускается через **Actions → Build Nova → Run workflow**.
-
-Отправка тега `v` с версией из package.json (например, `v1.0.0`) дополнительно публикует установщики в Releases.
-
-## Сборка
-
-Собирайте на соответствующей операционной системе:
-
-```sh
-npm run dist:mac
-npm run dist:win
-npm run dist:linux
 ```
 
 Инструкции по Releases, подписи приложений, обновлениям и настройке Horizon: [BUILD.md](BUILD.md).
