@@ -9,8 +9,8 @@
 
 ## Скачать
 
-- Apple Silicon: `Nova-1.0.2-arm64.dmg`.
-- Mac Intel: `Nova-1.0.2.dmg`.
+- Apple Silicon: `Nova-1.0.3-arm64.dmg`.
+- Mac Intel: `Nova-1.0.3.dmg`.
 - Windows: установщик `.exe`.
 - Linux x64: `.AppImage`.
 

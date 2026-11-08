@@ -1,9 +1,13 @@
-const {app,BrowserWindow}=require('electron'),path=require('path'),fs=require('fs'),os=require('os'),assert=require('node:assert/strict');
+const {app,BrowserWindow,session}=require('electron'),path=require('path'),fs=require('fs'),os=require('os'),assert=require('node:assert/strict');
 const root=fs.mkdtempSync(path.join(os.tmpdir(),'nova-intro-test-'));app.setPath('userData',root);const output=path.join(os.tmpdir(),'nova-startup-review');fs.mkdirSync(output,{recursive:true});
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
-app.whenReady().then(async()=>{const windows=[];try{
+app.whenReady().then(async()=>{
+ // Intro tests use local fixtures; remote avatars/skins must not delay the load event.
+ session.defaultSession.webRequest.onBeforeRequest({urls:['https://*/*']},(_,done)=>done({cancel:true}));
+ const windows=[];try{
  for(const first of [true,false]){
-  const w=new BrowserWindow({width:1100,height:700,show:false,webPreferences:{offscreen:true,preload:path.join(__dirname,'mock-preload.cjs'),additionalArguments:first?['--nova-first-start']:[]}});windows.push(w);
+  const w=new BrowserWindow({width:1100,height:700,show:false,webPreferences:{offscreen:true,backgroundThrottling:false,preload:path.join(__dirname,'mock-preload.cjs'),additionalArguments:first?['--nova-first-start']:[]}});windows.push(w);
+  await w.loadURL('about:blank');await w.webContents.debugger.attach('1.3');await w.webContents.debugger.sendCommand('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'no-preference'}]});
   await w.loadFile(path.join(__dirname,'..','index.html'));
   for(let n=0;n<60;n++){if(await w.webContents.executeJavaScript("typeof NovaStartup!=='undefined'&&NovaStartup.active"))break;await wait(20);}
   assert.equal(await w.webContents.executeJavaScript("document.querySelector('#startupOverlay').dataset.mode"),first?'first':'returning');
@@ -17,7 +21,7 @@ app.whenReady().then(async()=>{const windows=[];try{
   await wait(650);await w.webContents.executeJavaScript("document.querySelector('[data-tab=settings]').click()");await wait(100);
   await w.webContents.executeJavaScript("document.querySelector('[data-act=intropreview]').click()");assert(await w.webContents.executeJavaScript("NovaStartup.active&&document.querySelector('#startupOverlay').dataset.mode==='first'"));
   await w.webContents.executeJavaScript('NovaStartup.skip()');await wait(800);assert(await w.webContents.executeJavaScript("!NovaStartup.active&&S.tab==='settings'&&S.db.settings.onboarded===true"));
-  await w.webContents.debugger.attach('1.3');await w.webContents.debugger.sendCommand('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});
+  await w.webContents.debugger.sendCommand('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});
   const start=Date.now();await w.webContents.executeJavaScript('NovaStartup.play({first:true})');assert(Date.now()-start<900);assert(await w.webContents.executeJavaScript("!NovaStartup.active&&document.querySelector('#startupOverlay').hidden"));w.webContents.debugger.detach();
  }
  console.log(JSON.stringify({passed:true,firstOpening:true,returningOpening:true,skip:true,settingsPreview:true,reducedMotion:true,output}));
