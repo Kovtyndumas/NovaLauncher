@@ -55,12 +55,43 @@ ipcMain.handle('versions:list',async()=>{
  catch(e){try{const versions=JSON.parse(fs.readFileSync(file,'utf8'));if(Array.isArray(versions)&&versions.includes('1.0'))return {versions,cached:true};}catch{}throw e;}
 });
 ipcMain.handle('history:list',()=>history().list());
+const rustInstall=require('./horizon-install');
+const rustData=id=>path.join(ud(),'horizon-instances',id);
+async function rustTask(inst,action,{log=()=>{},onStart=()=>{},server}={}){
+ if(inst.loader!=='Rust'||inst.version!==rustInstall.GAME_VERSION)throw Error('Выберите инстанс 26.3 RUST');
+ const exe=await rustInstall.ensure(path.join(ud(),'runtimes','horizon-launcher'),{log});
+ const options={tag:rustInstall.GAME_TAG,gameRoot:iDir(inst.id),onLog:log};
+ if(action==='open')return horizon.launch(exe,'open',rustData(inst.id),options);
+ if(action==='install'||action==='play'){
+  log('Устанавливаем Minecraft 26.3 RUST · Horizon '+rustInstall.GAME_TAG+'…');
+  const installed=await horizon.launch(exe,'versions',rustData(inst.id),{...options,onLog:()=>{}});
+  if(!installed.output?.split(/\r?\n/).some(line=>line.trim().replace(/^\*\s*/,'').split(/\s+/)[0]===rustInstall.GAME_TAG))await horizon.launch(exe,'install',rustData(inst.id),options);
+  else log('Сборка '+rustInstall.GAME_TAG+' уже установлена');
+  if(action==='install')return {installed:true,tag:rustInstall.GAME_TAG};
+ }
+ log('Подготовка ресурсов Minecraft 26.3…');
+ await horizon.launch(exe,'prepare',rustData(inst.id),options);
+ log('Запускаем Minecraft 26.3 RUST…');
+ return horizon.launch(exe,'play',rustData(inst.id),{...options,server,onStart});
+}
+ipcMain.handle('rust:setup',(_,id,action)=>idleOperation(async()=>{
+ if(!['open','install'].includes(action))throw Error('Неизвестное действие');const inst=instanceById(id);
+ return rustTask(inst,action,{log:line=>{if(win&&!win.isDestroyed())win.webContents.send('game:log',line);}});
+}));
+async function launchRust(inst,server){
+ activeGame=true;presenceContext={phase:'launching',instance:inst};refreshPresence();
+ const send=(channel,...args)=>{if(win&&!win.isDestroyed())win.webContents.send(channel,...args);},log=line=>send('game:log',line);let session,exitCode=-1,report=null;
+ try{await rustTask(inst,'play',{server,log,onStart:()=>{try{session=history().start(inst,'horizon');}catch(e){log(e.message);}presenceContext={phase:'playing',instance:inst,started:Math.floor(Date.now()/1000)};refreshPresence();send('game:started',inst.id);}});exitCode=0;return true;}
+ catch(e){log(e.message);const auth=/sign.?in|account|login|войд|аккаунт/i.test(e.message);report={instanceId:inst.id,code:e.code??-1,title:auth?'Войдите в Horizon':'Не удалось запустить 26.3 RUST',advice:auth?'Нажмите «Войти в Horizon» на экране игры, войдите в Microsoft с Java Edition и закройте окно Horizon. Затем нажмите «Играть».':e.message,evidence:[],at:new Date().toISOString()};return false;}
+ finally{if(session)try{history().finish(session,exitCode);}catch(e){log(e.message);}activeGame=false;presenceContext={phase:'launcher',instance:inst};refreshPresence();send('game:closed',exitCode,report);}
+}
+
 async function idleOperation(fn){if(activeGame||modBusy)throw Error('Закройте игру и дождитесь завершения операций');modBusy=true;try{return await fn();}finally{modBusy=false;}}
 ipcMain.handle('instance:duplicate',(_,id)=>idleOperation(async()=>{const item=await instanceTools.duplicate(instanceById(id),{instancesDir:path.join(ud(),'instances'),load,save});return {instance:item,db:stateStore.publicDb(load())};}));
 ipcMain.handle('worlds:list',(_,id)=>{instanceById(id);return instanceTools.list(iDir(id));});
 ipcMain.handle('worlds:backup',(_,id)=>idleOperation(()=>{instanceById(id);return instanceTools.snapshot(iDir(id));}));
 ipcMain.handle('worlds:restore',(_,id,backup)=>idleOperation(()=>{instanceById(id);return instanceTools.restore(iDir(id),backup);}));
-ipcMain.handle('content:manage',(_,id,type,name,action)=>idleOperation(async()=>{const inst=instanceById(id),root=iDir(id);if(action==='remove')return contentManager.remove(root,type,name);if(action==='toggle')return contentManager.configure(root,type,name,!contentManager.active(root,type,name));if(action==='update'){await instanceTools.snapshot(root,'Перед обновлением контента');return contentManager.update(root,type,name,inst,contentService);}throw Error('Неизвестное действие');}));
+ipcMain.handle('content:manage',(_,id,type,name,action)=>idleOperation(async()=>{const inst=instanceById(id),root=iDir(id);if(inst.loader==='Rust')throw Error('Управляйте контентом Horizon в Horizon');if(action==='remove')return contentManager.remove(root,type,name);if(action==='toggle')return contentManager.configure(root,type,name,!contentManager.active(root,type,name));if(action==='update'){await instanceTools.snapshot(root,'Перед обновлением контента');return contentManager.update(root,type,name,inst,contentService);}throw Error('Неизвестное действие');}));
 ipcMain.handle('launcher:status',()=>launcherUpdates.status());
 ipcMain.handle('launcher:check',()=>launcherUpdates.check());
 ipcMain.handle('launcher:download',()=>idleOperation(()=>launcherUpdates.download()));
@@ -98,7 +129,7 @@ const dl = async (url, file) => { fs.mkdirSync(path.dirname(file), { recursive: 
 ipcMain.handle('mr:install', async (_, { project, inst, type }) => {
   if(activeGame||modBusy)throw Error('Закройте игру и дождитесь завершения установки');
   modBusy=true;
-  try{const saved=instanceById(inst.id);return type==='mod'?await contentService.installMod(project,saved,iDir(saved.id)):await contentService.installContent(project,saved,iDir(saved.id),type);}finally{modBusy=false;}
+  try{const saved=instanceById(inst.id);if(saved.loader==='Rust')throw Error('Java-контент не устанавливается в Horizon. Используйте форматы Horizon');return type==='mod'?await contentService.installMod(project,saved,iDir(saved.id)):await contentService.installContent(project,saved,iDir(saved.id),type);}finally{modBusy=false;}
 });
 ipcMain.handle('content:list',(_,id,type)=>{instanceById(id);return contentService.listContent(iDir(id),type).map(f=>({...f,active:contentManager.active(iDir(id),type,f.name)}));});
 ipcMain.handle('content:open',async(_,id,type)=>{instanceById(id);const folder={shader:'shaderpacks',resourcepack:'resourcepacks'}[type];if(!folder)throw Error('Неизвестный тип контента');const dir=path.join(iDir(id),folder);fs.mkdirSync(dir,{recursive:true});const error=await shell.openPath(dir);if(error)throw Error(error);});
@@ -142,16 +173,16 @@ ipcMain.handle('mods:remove',(_,id,name)=>{if(activeGame||modBusy)throw Error('�
 ipcMain.handle('mods:removed',(_,id)=>{instanceById(id);return modFiles.list(iDir(id));});
 ipcMain.handle('mods:restoreRemoved',(_,id,backup)=>{if(activeGame||modBusy)throw Error('Закройте игру и дождитесь завершения операций');instanceById(id);return modFiles.restore(iDir(id),backup);});
 ipcMain.handle('mods:check', async (_, id) => {
-  const inst=instanceById(id);const {updates,unknown}=await modUpdates.scan(iDir(id),inst);
+  const inst=instanceById(id);if(inst.loader==='Rust')throw Error('Обновления Java-модов недоступны для Horizon');const {updates,unknown}=await modUpdates.scan(iDir(id),inst);
   return {updates:updates.map(({name,to,version,fromVersion})=>({name,to,version,fromVersion})),unknown};
 });
 ipcMain.handle('mods:update', async (_, id, names) => {
   if(activeGame||modBusy)throw Error('Закройте игру и дождитесь завершения операций с модами');
   if(!Array.isArray(names)||new Set(names).size!==names.length)throw Error('Некорректный список модов');
-  const inst=instanceById(id);modBusy=true;
+  const inst=instanceById(id);if(inst.loader==='Rust')throw Error('Обновления Java-модов недоступны для Horizon');modBusy=true;
   try{if(names.length)await instanceTools.snapshot(iDir(id),'Перед обновлением модов');return await modUpdates.apply(iDir(id),inst,names);}finally{modBusy=false;}
 });
-ipcMain.handle('mods:compatibility',async(_,id,online=true)=>{const inst=instanceById(id);const checker=online?compatibility:compatibilityCache;return checker.check(iDir(id),inst,{headers:UA,...(!online?{request:async()=>{throw Error('offline preflight');}}:{})});});
+ipcMain.handle('mods:compatibility',async(_,id,online=true)=>{const inst=instanceById(id);if(inst.loader==='Rust')return {checked:0,disabled:0,errors:0,warnings:0,issues:[]};const checker=online?compatibility:compatibilityCache;return checker.check(iDir(id),inst,{headers:UA,...(!online?{request:async()=>{throw Error('offline preflight');}}:{})});});
 ipcMain.handle('mods:backups',(_,id)=>{instanceById(id);return rollback.list(iDir(id));});
 ipcMain.handle('mods:rollback',async(_,id,backup)=>{
   if(activeGame||modBusy)throw Error('Закройте игру и дождитесь завершения операций с модами');
@@ -159,7 +190,7 @@ ipcMain.handle('mods:rollback',async(_,id,backup)=>{
 });
 ipcMain.handle('pack:export',async(_,id)=>{
   if(activeGame||modBusy)throw Error('Закройте игру и дождитесь завершения операций с модами');
-  const inst=instanceById(id);modBusy=true;
+  const inst=instanceById(id);if(inst.loader==='Rust')throw Error('Экспорт .mrpack доступен для Java-инстансов');modBusy=true;
   try{
     const result=await dialog.showSaveDialog(win,{title:'Экспорт сборки',defaultPath:inst.name.replace(/[\\/:*?"<>|]/g,'_')+'.mrpack',filters:[{name:'Сборка Modrinth',extensions:['mrpack']}]});
     if(result.canceled||!result.filePath)return null;
@@ -233,7 +264,7 @@ async function ensureLoader(inst, root, log) {
 }
 ipcMain.handle('game:launch', async (_, inst, server) => {
   if(activeGame||modBusy)throw Error('Игра уже запущена или идёт обновление модов');
-  inst=instanceById(inst.id);activeGame=true;presenceContext={phase:'launching',instance:inst};refreshPresence();
+  inst=instanceById(inst.id);if(inst.loader==='Rust')return launchRust(inst,server);activeGame=true;presenceContext={phase:'launching',instance:inst};refreshPresence();
   const s=load().settings,root=iDir(inst.id),started=Date.now(),send=(c,...a)=>{if(!win.isDestroyed())win.webContents.send(c,...a);};
   let transcript='',finished=false,playSession;
   const log=m=>{const line=String(m).replace(/(--accessToken|--clientId|--xuid|--uuid)(\s+)(\S+)/gi,'$1$2[скрыто]');transcript=(transcript+line+'\n').slice(-180000);send('game:log',line);};

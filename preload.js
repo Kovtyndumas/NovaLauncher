@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld('api', {
   versions:()=>r.invoke('versions:list'),history:()=>r.invoke('history:list'),duplicateInstance:id=>r.invoke('instance:duplicate',id),worldBackups:id=>r.invoke('worlds:list',id),backupWorlds:id=>r.invoke('worlds:backup',id),restoreWorlds:(id,backup)=>r.invoke('worlds:restore',id,backup),
   manageContent:(id,type,name,action)=>r.invoke('content:manage',id,type,name,action),
   launcherStatus:()=>r.invoke('launcher:status'),launcherCheck:()=>r.invoke('launcher:check'),launcherDownload:()=>r.invoke('launcher:download'),launcherInstall:()=>r.invoke('launcher:install'),
+  rustSetup:(id,action)=>r.invoke('rust:setup',id,action),
   horizonStatus:()=>r.invoke('horizon:status'),horizonChoose:()=>r.invoke('horizon:choose'),horizonDownload:()=>r.invoke('horizon:download'),horizonRun:action=>r.invoke('horizon:run',action),
   getDb: () => r.invoke('db:get'), setDb: (d,base) => r.invoke('db:set',d,base),
   contentFiles:(id,type)=>r.invoke('content:list',id,type),openContentDir:(id,type)=>r.invoke('content:open',id,type),

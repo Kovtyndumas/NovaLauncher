@@ -4,7 +4,7 @@ const defaults=()=>({instances:[],servers:[],settings:{name:'Steve',ram:4,snow:f
 function normalize(value){
   if(!value||typeof value!=='object'||!Array.isArray(value.instances)||!value.settings||typeof value.settings!=='object')throw Error('Некорректный файл настроек');
   const d={...value,settings:{...defaults().settings,...value.settings},servers:Array.isArray(value.servers)?value.servers:[]};
-  if(!d.instances.every(i=>i&&typeof i.id==='string'&&/^[\w-]+$/.test(i.id)&&typeof i.name==='string'&&typeof i.version==='string'&&/^[\w.+-]+$/.test(i.version)&&['Vanilla','Fabric','Quilt','Forge','NeoForge'].includes(i.loader)))throw Error('Некорректные данные инстанса');
+  if(!d.instances.every(i=>i&&typeof i.id==='string'&&/^[\w-]+$/.test(i.id)&&typeof i.name==='string'&&typeof i.version==='string'&&/^[\w.+-]+$/.test(i.version)&&['Vanilla','Fabric','Quilt','Forge','NeoForge','Rust'].includes(i.loader)&&(i.loader!=='Rust'||i.version==='26.3')))throw Error('Некорректные данные инстанса');
   if(new Set(d.instances.map(x=>x.id)).size!==d.instances.length)throw Error('Повторяющиеся идентификаторы инстансов');
   d.settings.ram=Math.max(1,Math.min(64,Number(d.settings.ram)||4));d.settings.name=String(d.settings.name||'Steve');return d;
 }
