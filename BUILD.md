@@ -46,7 +46,7 @@ https://github.com/horizon-rust/horizon/blob/v0.2.97/research-lock.json
 Источник по умолчанию: Releases репозитория https://github.com/Kovtyndumas/NovaLauncher
 Автоматическая проверка при запуске установленной Nova и каждые 4 часа; загрузку и перезапуск подтверждает пользователь кнопками в настройках. В npm start обновления отключены. Обновление никогда не перезапускает Nova во время игры или операций с файлами.
 
-В .github/workflows/release.yml подготовлена сборка Windows x64, Linux x64 и macOS arm64/x64. Загрузите исходники вместе с package-lock.json и .github в корень репозитория. node_modules, dist и игровые данные не загружайте. Для выпуска:
+В .github/workflows/release.yml настроена автоматическая сборка Windows x64, Linux x64 и macOS arm64/x64 при каждом push в main. Готовые установщики доступны в Actions → Build Nova → завершённый запуск → Artifacts (14 дней). Загрузите исходники вместе с package-lock.json и .github в корень репозитория. node_modules, dist и игровые данные не загружайте. Для выпуска:
 
 1. Измените version в package.json и package-lock.json (npm version 1.0.1 --no-git-tag-version).
 2. Сохраните изменения коммитом и загрузите их в GitHub.
@@ -57,4 +57,4 @@ workflow_dispatch собирает артефакты без публикаци�
 
 Для автообновлений macOS необходима подпись Developer ID. Настройте секреты CSC_LINK (сертификат p12 в base64), CSC_KEY_PASSWORD, APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID для подписи/notarization. Без сертификата macOS-сборку можно установить вручную, но автообновление macOS нельзя считать рабочим. Для Windows рекомендуется сертификат подписи; Linux использует AppImage. Адрес generic-сервера можно переопределить в настройках, сохраняя HTTPS.
 
-Git-репозиторий проекта: https://github.com/Kovtyndumas/NovaLauncher. Публикация установщиков запускается отправкой тега версии; обычная загрузка исходников в main релиз не создаёт.
+Git-репозиторий проекта: https://github.com/Kovtyndumas/NovaLauncher. Публикация установщиков запускается отправкой тега версии; загрузка исходников в main автоматически собирает артефакты без создания релиза.

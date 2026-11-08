@@ -1,8 +1,12 @@
-name: Release Nova
+name: Build Nova
 on:
   push:
+    branches: [main]
     tags: ['v*']
   workflow_dispatch:
+concurrency:
+  group: nova-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 permissions:
   contents: write
 jobs:
@@ -13,14 +17,19 @@ jobs:
         include:
           - os: macos-latest
             args: --mac --arm64 --x64
+            label: macOS
           - os: windows-latest
             args: --win --x64
+            label: Windows
           - os: ubuntu-latest
             args: --linux --x64
+            label: Linux
+    name: ${{ matrix.label }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -44,7 +53,9 @@ jobs:
         run: npx electron-builder ${{ matrix.args }} --publish never
       - uses: actions/upload-artifact@v4
         with:
-          name: Nova-${{ matrix.os }}
+          name: Nova-${{ matrix.label }}-${{ github.run_number }}
+          if-no-files-found: error
+          retention-days: 14
           path: |
             dist/*.dmg
             dist/*.zip
