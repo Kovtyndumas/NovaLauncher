@@ -26,5 +26,5 @@ test('unsupported download source is rejected before network access',async t=>{
  const f=fixture(t,idx=>idx.files[0].downloads=['http://127.0.0.1/private']);await assert.rejects(importPack(f.file,f),/описание файла/);assert.deepEqual(fs.readdirSync(f.instancesDir),[]);
 });
 test('rejects Windows, absolute and sibling-prefix paths',()=>{
- for(const p of ['/tmp/evil','../instances-evil/file','C:/evil','mods\\evil','mods/../../evil','./mods/x'])assert.throws(()=>inside('/tmp/instances',p));assert.equal(inside('/tmp/instances','config/test.json'),'/tmp/instances/config/test.json');
+ const root=path.join(os.tmpdir(),'instances');for(const p of ['/tmp/evil','../instances-evil/file','C:/evil','mods\\evil','mods/../../evil','./mods/x'])assert.throws(()=>inside(root,p));assert.equal(inside(root,'config/test.json'),path.join(root,'config','test.json'));
 });
