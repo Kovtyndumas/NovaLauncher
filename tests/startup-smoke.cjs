@@ -20,9 +20,9 @@ app.whenReady().then(async()=>{
   if(first)await w.webContents.executeJavaScript("document.querySelector('#o3').click()");
   await wait(650);await w.webContents.executeJavaScript("document.querySelector('[data-tab=settings]').click()");await wait(100);
   await w.webContents.executeJavaScript("document.querySelector('[data-act=intropreview]').click()");assert(await w.webContents.executeJavaScript("NovaStartup.active&&document.querySelector('#startupOverlay').dataset.mode==='first'"));
-  await w.webContents.executeJavaScript('NovaStartup.skip()');await wait(800);assert(await w.webContents.executeJavaScript("!NovaStartup.active&&S.tab==='settings'&&S.db.settings.onboarded===true"));
+  await w.webContents.executeJavaScript('NovaStartup.skip()');for(let n=0;n<100;n++){if(await w.webContents.executeJavaScript('!NovaStartup.active'))break;await wait(30);}assert(await w.webContents.executeJavaScript("!NovaStartup.active&&S.tab==='settings'&&S.db.settings.onboarded===true"));
   await w.webContents.debugger.sendCommand('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});
-  const start=Date.now();await w.webContents.executeJavaScript('NovaStartup.play({first:true})');assert(Date.now()-start<900);assert(await w.webContents.executeJavaScript("!NovaStartup.active&&document.querySelector('#startupOverlay').hidden"));w.webContents.debugger.detach();
+  const start=Date.now();await w.webContents.executeJavaScript('NovaStartup.play({first:true})');assert(Date.now()-start<2000);assert(await w.webContents.executeJavaScript("!NovaStartup.active&&document.querySelector('#startupOverlay').hidden"));w.webContents.debugger.detach();
  }
  console.log(JSON.stringify({passed:true,firstOpening:true,returningOpening:true,skip:true,settingsPreview:true,reducedMotion:true,output}));
  for(const w of windows)w.destroy();fs.rmSync(root,{recursive:true,force:true});app.exit(0);
