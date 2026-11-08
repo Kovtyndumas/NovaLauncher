@@ -1,0 +1,20 @@
+const { contextBridge, ipcRenderer: r, webUtils } = require('electron');
+contextBridge.exposeInMainWorld('api', {
+  compatibility: (id,online=true) => r.invoke('mods:compatibility',id,online), backups: id => r.invoke('mods:backups',id), rollback: (id,backup) => r.invoke('mods:rollback',id,backup), exportPack: id => r.invoke('pack:export',id),
+  importPack: file => r.invoke('pack:import',file), filePath: file => webUtils.getPathForFile(file),
+  versions:()=>r.invoke('versions:list'),history:()=>r.invoke('history:list'),duplicateInstance:id=>r.invoke('instance:duplicate',id),worldBackups:id=>r.invoke('worlds:list',id),backupWorlds:id=>r.invoke('worlds:backup',id),restoreWorlds:(id,backup)=>r.invoke('worlds:restore',id,backup),
+  manageContent:(id,type,name,action)=>r.invoke('content:manage',id,type,name,action),
+  launcherStatus:()=>r.invoke('launcher:status'),launcherCheck:()=>r.invoke('launcher:check'),launcherDownload:()=>r.invoke('launcher:download'),launcherInstall:()=>r.invoke('launcher:install'),
+  horizonStatus:()=>r.invoke('horizon:status'),horizonChoose:()=>r.invoke('horizon:choose'),horizonDownload:()=>r.invoke('horizon:download'),horizonRun:action=>r.invoke('horizon:run',action),
+  getDb: () => r.invoke('db:get'), setDb: (d,base) => r.invoke('db:set',d,base),
+  contentFiles:(id,type)=>r.invoke('content:list',id,type),openContentDir:(id,type)=>r.invoke('content:open',id,type),
+  search: o => r.invoke('mr:search', o), install: o => r.invoke('mr:install', o),
+  checkUpdates: id => r.invoke('mods:check',id), updateMods: (id,names) => r.invoke('mods:update',id,names), lastCrash: id => r.invoke('game:lastCrash',id),
+  removeMod:(id,name)=>r.invoke('mods:remove',id,name), removedMods:id=>r.invoke('mods:removed',id), restoreRemoved:(id,backup)=>r.invoke('mods:restoreRemoved',id,backup),
+  mods: id => r.invoke('mods:list', id), toggle: (id, f) => r.invoke('mods:toggle', id, f),
+  launch: (i, s) => r.invoke('game:launch', i, s), pack: o => r.invoke('mr:pack', o), ping: h => r.invoke('srv:ping', h), login: () => r.invoke('auth:ms'), restore: () => r.invoke('auth:restore'), logout: () => r.invoke('auth:logout'),
+  discordStatus:()=>r.invoke('discord:status'),discordSelect:id=>r.invoke('discord:select',id),
+  deleteInstance:id=>r.invoke('instance:delete',id),
+  openDir: id => r.invoke('dir:open', id),
+  on: (ch, fn) => r.on(ch, (_, ...a) => fn(...a)),
+});

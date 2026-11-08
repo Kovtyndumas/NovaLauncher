@@ -1,0 +1,76 @@
+{
+  "name": "nova-launcher",
+  "version": "1.0.0",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder",
+    "test": "node --test tests/*.test.js",
+    "test:ui": "electron tests/ui-smoke.cjs",
+    "dist:mac": "electron-builder --mac dmg --arm64 --x64 --publish never",
+    "dist:win": "electron-builder --win nsis --x64 --publish never",
+    "dist:linux": "electron-builder --linux AppImage --x64 --publish never",
+    "test:main": "electron tests/main-smoke.cjs"
+  },
+  "dependencies": {
+    "adm-zip": "^0.5.16",
+    "electron-updater": "^6.8.11",
+    "minecraft-launcher-core": "^3.18.2",
+    "msmc": "^5.0.0"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "app.nova.launcher",
+    "productName": "Nova",
+    "asar": true,
+    "files": [
+      "*.js",
+      "index.html",
+      "vendor/**/*",
+      "package.json",
+      "!tests/**/*",
+      "!index.before-animation.html",
+      "assets/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.games",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "icon": "build/icon.icns"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "build/icon.ico"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Game",
+      "icon": "build/icon.png"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Kovtyndumas",
+        "repo": "NovaLauncher",
+        "releaseType": "release"
+      }
+    ]
+  },
+  "description": "Nova Minecraft Launcher",
+  "author": {
+    "name": "Nova Launcher"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Kovtyndumas/NovaLauncher.git"
+  }
+}

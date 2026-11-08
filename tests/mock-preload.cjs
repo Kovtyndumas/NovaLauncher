@@ -1,0 +1,23 @@
+const {contextBridge}=require('electron');
+const db={instances:[{id:'test',name:'Nova Survival',version:'1.20.1',loader:'Fabric'}],settings:{name:'Steve',ram:4,snow:false,onboarded:true},servers:[{name:'Мой сервер',host:'localhost',favorite:true},{name:'Другой сервер',host:'example.org',favorite:false}]};
+let mods=['sodium-0.5.jar','local.jar.disabled'],removed=[];let rolledBack=false,launches=0,exportCount=0,lastSearch=null,lastPack=null,failInstall=false,openedContent=0,cancelDelete=false;
+const content={shader:[],resourcepack:[]};
+const importPack=async()=>{const inst={id:'imported-'+db.instances.length,name:'Imported Pack',version:'1.20.1',loader:'Fabric',loaderVersion:'0.15.11'};db.instances.push(inst);return inst;};
+contextBridge.exposeInMainWorld('api',{
+ importPack:async file=>file==='cancel'?null:importPack(),pack:async options=>{lastPack=options;return importPack();},
+ contentFiles:async(id,type)=>content[type]||[],openContentDir:async()=>{openedContent++;},testFailInstall:async()=>{failInstall=true;},install:async options=>{await new Promise(r=>setTimeout(r,90));if(failInstall){failInstall=false;throw Error('Test download failed');}const name=options.type==='mod'?'sample.jar':'sample.zip';if(content[options.type])content[options.type]=[{name,project:options.project}];return name;},
+ filePath:()=>'/tmp/example.mrpack',
+ compatibility:async()=>({checked:2,disabled:1,online:true,errors:1,warnings:0,issues:[{severity:'error',file:'example.jar',message:'Не найдена обязательная зависимость: fabric-api'}]}),backups:async()=>[{id:'test-backup',at:'2026-11-07T12:00:00Z',count:1,files:['sodium-0.5.jar'],legacy:false,restored:rolledBack}],rollback:async()=>{rolledBack=true;return {count:1};},exportPack:async()=>{exportCount++;return {count:3,omitted:[],file:'/tmp/export.mrpack'};},testCounts:async()=>({launches,exports:exportCount,rolledBack,lastSearch,lastPack,openedContent}),
+ discordSelect:async()=>{},discordStatus:async()=>'connected',
+ testCancelDelete:async()=>{cancelDelete=true;},deleteInstance:async id=>{if(cancelDelete){cancelDelete=false;return null;}const inst=db.instances.find(i=>i.id===id);db.instances=db.instances.filter(i=>i.id!==id);return {id,name:inst.name,retained:false,db};},
+ versions:async()=>({versions:['26.3','1.21.1','1.20.1','1.0']}),history:async()=>[{id:'session',instanceId:'test',name:'Nova Survival',version:'1.20.1',at:'2026-11-08T10:00:00Z',seconds:600,closed:true,engine:'java'}],
+ worldBackups:async()=>[{id:'123-abcd',at:'2026-11-08T10:00:00Z',reason:'Вручную',worlds:['World']}],backupWorlds:async()=>({id:'123-abcd'}),restoreWorlds:async()=>({id:'123-abcd'}),duplicateInstance:async id=>{const item={...db.instances.find(i=>i.id===id),id:'copy',name:'Nova Survival — копия'};db.instances.push(item);return {instance:item,db};},
+ horizonStatus:async()=>({path:'/Applications/Horizon.app'}),horizonRun:async()=>({code:0}),horizonChoose:async()=>null,horizonDownload:async()=>{},launcherCheck:async()=>({phase:'current',message:'Установлена последняя версия'}),
+ manageContent:async(id,type,name,action)=>{const item=content[type].find(f=>f.name===name);if(action==='toggle')item.active=!item.active;else if(action==='remove')content[type]=content[type].filter(f=>f!==item);return {changed:false};},
+ getDb:async()=>db,setDb:async d=>Object.assign(db,d),mods:async()=>mods,
+ search:async options=>{lastSearch=options;return [{project_id:'sample',title:({mod:'Compatible Mod',shader:'Test Shader',resourcepack:'Test Resource Pack',modpack:'Test Modpack'})[options.type],description:'Автоматическая подборка',downloads:12345,icon_url:'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2252%22 height=%2252%22%3E%3Crect width=%2252%22 height=%2252%22 fill=%22%2343b5ff%22/%3E%3C/svg%3E'}];},ping:async()=>({online:true,players:{online:8,max:20},version:'1.20.1'}),
+ checkUpdates:async()=>({updates:[{name:'sodium-0.5.jar',to:'sodium-0.6.jar',fromVersion:'0.5',version:'0.6'}],unknown:['local.jar.disabled']}),
+ updateMods:async()=>({count:1}),lastCrash:async()=>({title:'Конфликт модификаций',advice:'Отключите недавно добавленные моды.',code:1,evidence:['MixinApplyError: example'],instanceId:'test'}),
+ toggle:async(id,name)=>{mods=mods.map(x=>x===name?(x.endsWith('.disabled')?x.slice(0,-9):x+'.disabled'):x);},removeMod:async(id,name)=>{mods=mods.filter(x=>x!==name);removed.push({id:'removed-'+removed.length,name,at:new Date().toISOString(),restored:false});return {name};},removedMods:async()=>removed,restoreRemoved:async(id,backup)=>{const item=removed.find(x=>x.id===backup);mods.push(item.name);item.restored=true;},
+ on(){},openDir(){},launch:async()=>{launches++;return true;},restore:async()=>null
+});

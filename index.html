@@ -1,0 +1,506 @@
+<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' https: data:; connect-src https://piston-meta.mojang.com; font-src 'self'; style-src 'self' 'unsafe-inline'">
+<title>Nova</title><link rel="icon" href="assets/nova-mark.svg" type="image/svg+xml">
+<script src="vendor/skinview3d.bundle.js"></script>
+<style>
+:root{--bg:#f5f5f7;--side:rgba(236,236,240,.62);--fg:#1d1d1f;--mut:#86868b;--line:rgba(0,0,0,.08);--card:rgba(255,255,255,.7);--fill:rgba(0,0,0,.05);--acc:#0a84ff;--sh:0 1px 2px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.06)}
+@media(prefers-color-scheme:dark){:root{--bg:#000;--side:rgba(34,34,38,.6);--fg:#f5f5f7;--line:rgba(255,255,255,.09);--card:rgba(44,44,48,.7);--fill:rgba(255,255,255,.08);--sh:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.35)}}
+*{box-sizing:border-box;-webkit-font-smoothing:antialiased}
+body{margin:0;height:100vh;display:flex;font:13px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Inter,sans-serif;color:var(--fg);background:var(--bg);overflow:hidden;user-select:none}
+button{font:inherit;color:inherit;cursor:pointer}
+aside{width:244px;background:var(--side);backdrop-filter:blur(40px) saturate(180%);border-right:1px solid var(--line);padding:52px 12px 12px;display:flex;flex-direction:column;-webkit-app-region:drag;z-index:2}
+aside button,aside .acc{-webkit-app-region:no-drag}
+.h{font-size:11px;font-weight:600;color:var(--mut);padding:0 10px 6px;letter-spacing:.02em}
+.list-s{flex:1;overflow:auto;display:flex;flex-direction:column;gap:2px}
+.item{display:flex;gap:10px;align-items:center;padding:7px 10px;border-radius:10px;border:0;background:none;text-align:left;transition:background .15s}
+.item:hover{background:var(--fill)}.item.on{background:var(--acc);color:#fff;box-shadow:0 4px 14px -4px var(--acc)}
+.item b{font-weight:500;display:block}.item small{color:var(--mut);font-size:11px}.item.on small{color:#ffffffc4}
+.ic{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;font-weight:700;font-size:14px;color:#fff;flex:none;box-shadow:inset 0 0 0 1px #ffffff30}
+.add{color:var(--acc);margin-top:4px}
+.acc{display:flex;align-items:center;gap:10px;padding:10px;margin-top:8px;border-radius:12px;background:var(--card);box-shadow:var(--sh)}
+.acc img{width:34px;height:34px;border-radius:8px;image-rendering:pixelated;background:var(--fill)}.acc small{display:block;color:var(--mut);font-size:11px}
+main{flex:1;display:flex;flex-direction:column;min-width:0;position:relative}
+.glow{position:absolute;inset:0 0 auto 0;height:70%;background:radial-gradient(60% 80% at 50% 0%,var(--c,#0a84ff)55,transparent 70%);opacity:.55;transition:background .5s;pointer-events:none}
+nav{height:52px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:8px;-webkit-app-region:drag;position:relative}
+.seg{display:flex;background:var(--fill);backdrop-filter:blur(20px);border-radius:10px;padding:2px;-webkit-app-region:no-drag}
+.seg button{border:0;background:none;font-weight:500;padding:5px 20px;border-radius:8px;color:var(--mut);transition:.2s}
+.seg button.on{background:var(--bg);color:var(--fg);box-shadow:0 1px 4px rgba(0,0,0,.18)}
+section{flex:1;overflow:auto;padding:26px 36px;position:relative;animation:in .35s cubic-bezier(.2,.8,.2,1)}
+@keyframes in{from{opacity:0;transform:translateY(8px)}}
+.hero{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.big{width:104px;height:104px;border-radius:26px;display:grid;place-items:center;font-size:48px;font-weight:700;color:#fff;box-shadow:0 20px 50px -10px var(--c),inset 0 0 0 1px #ffffff40;margin-bottom:22px}
+h1{font-size:42px;font-weight:700;letter-spacing:-.035em;margin:0 0 10px}
+.chips{display:flex;gap:6px;justify-content:center}.chip{padding:3px 11px;border-radius:99px;background:var(--fill);backdrop-filter:blur(20px);font-size:12px;font-weight:500;color:var(--mut)}
+.play{margin-top:30px;border:0;color:#fff;font-size:18px;font-weight:600;padding:15px 72px;border-radius:99px;background:linear-gradient(180deg,color-mix(in srgb,var(--acc),#fff 25%),var(--acc));position:relative;overflow:hidden;box-shadow:0 10px 30px -8px var(--acc),inset 0 1px 0 #ffffff50;transition:.25s cubic-bezier(.2,.8,.2,1)}
+.play:hover{transform:translateY(-2px) scale(1.03);box-shadow:0 16px 40px -8px var(--acc),inset 0 1px 0 #ffffff50}.play:active{transform:scale(.97)}.play:disabled{opacity:.6;transform:none}
+.bar{width:280px;height:5px;border-radius:9px;background:var(--fill);margin-top:20px;overflow:hidden}.bar i{display:block;height:100%;border-radius:9px;background:var(--acc);transition:width .25s}
+.log{margin-top:10px;font:11px ui-monospace,SFMono-Regular,monospace;color:var(--mut);max-width:520px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.link{border:0;background:none;color:var(--acc);margin-top:22px;font-weight:500}
+.t{font-size:26px;font-weight:700;letter-spacing:-.025em;margin:0 0 18px}
+.cap{font-size:11px;font-weight:600;color:var(--mut);text-transform:uppercase;letter-spacing:.04em;margin:22px 0 8px 14px}
+.grp{background:var(--card);backdrop-filter:blur(30px);border-radius:14px;box-shadow:var(--sh);overflow:hidden}
+.row{display:flex;align-items:center;gap:14px;padding:11px 16px;border-top:1px solid var(--line)}.row:first-child{border:0}.row>div:first-child{flex:1;min-width:0}.row p{margin:1px 0 0;color:var(--mut);font-size:12px}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.card{display:flex;gap:12px;padding:14px;border-radius:16px;background:var(--card);backdrop-filter:blur(30px);box-shadow:var(--sh);transition:.2s}.card:hover{transform:translateY(-2px)}
+.card img{width:52px;height:52px;border-radius:12px;background:var(--fill);flex:none}.card>div{flex:1;min-width:0;display:flex;flex-direction:column}
+.card b{font-weight:600}.card p{margin:2px 0 8px;color:var(--mut);font-size:12px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.card footer{margin-top:auto;display:flex;align-items:center;justify-content:space-between;color:var(--mut);font-size:11px}
+.b{border:0;background:var(--fill);color:var(--acc);font-weight:600;padding:5px 16px;border-radius:99px;transition:.15s}.b:hover{background:var(--acc);color:#fff}.b.ok{background:#30d158;color:#fff}
+input,select{font:inherit;color:inherit;background:var(--fill);border:1px solid transparent;border-radius:10px;padding:8px 12px;outline:0;transition:.15s}
+input:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0 4px #0a84ff33}
+input[type=range]{padding:0;accent-color:var(--acc);width:160px}
+.sw{width:42px;height:25px;border-radius:99px;background:var(--fill);position:relative;cursor:pointer;flex:none;transition:.2s}.sw:after{content:"";position:absolute;top:2px;left:2px;width:21px;height:21px;border-radius:50%;background:#fff;box-shadow:0 2px 5px #0004;transition:.2s}
+.sw.on{background:#30d158}.sw.on:after{left:19px}
+.bar2{display:flex;gap:10px;margin-bottom:18px}
+dialog{border:0;border-radius:18px;padding:24px;background:var(--bg);color:var(--fg);box-shadow:0 30px 80px #0007,0 0 0 1px var(--line);width:360px}
+dialog::backdrop{background:#0006;backdrop-filter:blur(8px)}dialog label{display:block;margin:14px 0 5px;color:var(--mut);font-size:11px;font-weight:600}dialog input,dialog select{width:100%}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#1d1d1f;color:#fff;padding:10px 18px;border-radius:99px;box-shadow:0 10px 30px #0005;z-index:9;font-weight:500}
+.snow{position:fixed;inset:0;pointer-events:none;z-index:5}.snow i{position:absolute;top:-10px;background:#fff;border-radius:50%;animation:f linear infinite}@keyframes f{to{transform:translateY(105vh)}}
+
+
+main{z-index:1}
+.big{animation:fl 4s ease-in-out infinite}@keyframes fl{50%{transform:translateY(-9px) rotate(-2deg)}}
+.play::after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 35%,#ffffff66 50%,transparent 65%);transform:translateX(-100%);animation:sw 3s infinite}@keyframes sw{to{transform:translateX(100%)}}
+.bar i{background:linear-gradient(90deg,var(--acc),#bf5af2,#ff375f,var(--acc));background-size:200% 100%;animation:bs 1.4s linear infinite}@keyframes bs{to{background-position:-200% 0}}
+.item{transition:transform .18s,background .15s}.item:hover:not(.on){transform:translateX(4px)}
+.chip{animation:in .5s both}.chip:nth-child(2){animation-delay:.08s}.chip:nth-child(3){animation-delay:.16s}
+.toast{animation:in .3s both}
+.onb{position:fixed;inset:0;z-index:20;display:grid;place-items:center;background:color-mix(in srgb,var(--bg) 45%,transparent);backdrop-filter:blur(40px) saturate(160%);transition:.5s}
+.onb.out{opacity:0;transform:scale(1.06);pointer-events:none}
+.card2{text-align:center;width:420px;animation:pop .7s cubic-bezier(.2,.9,.3,1.2)}@keyframes pop{from{opacity:0;transform:scale(.88) translateY(20px)}}
+.or{color:var(--mut);font-size:11px;margin:6px 0 12px;font-weight:600}
+.ms{display:flex;align-items:center;justify-content:center;gap:10px}
+
+
+.skin{position:absolute;right:44px;bottom:16px;height:230px;animation:fl 4s ease-in-out infinite;filter:drop-shadow(0 18px 24px #0006);pointer-events:none}
+.con{background:#0b0b0d;color:#d1d1d6;border-radius:14px;padding:14px;height:calc(100vh - 230px);overflow:auto;font:11.5px/1.5 ui-monospace,SFMono-Regular,monospace;user-select:text;white-space:pre-wrap;margin:12px 0 0}
+.dot2{width:10px;height:10px;border-radius:50%;flex:none;background:#8e8e93}.dot2.on{background:#30d158;box-shadow:0 0 10px #30d158}.dot2.off{background:#ff453a}
+.x{border:0;background:none;color:var(--mut);font-size:18px;padding:0 6px}.x:hover{color:#ff453a}
+.sk{width:210px;height:270px;margin-bottom:8px;filter:drop-shadow(0 26px 30px color-mix(in srgb,var(--c) 55%,transparent))}.sk canvas{cursor:grab}.sk canvas:active{cursor:grabbing}
+
+:root{--sp:cubic-bezier(.34,1.56,.64,1)}
+button:active{transform:scale(.95)}
+.seg{position:relative}.seg button{position:relative;z-index:1}.seg button.on{background:none;box-shadow:none;color:var(--fg)}
+.pill{position:absolute;top:2px;bottom:2px;border-radius:8px;background:var(--bg);box-shadow:0 1px 5px rgba(0,0,0,.22);transition:left .4s var(--sp),width .4s var(--sp)}
+.sw:after{transition:left .4s var(--sp),width .2s}.sw:active:after{width:26px}.sw.on:active:after{left:14px}
+.enter>*{animation:in .55s var(--sp) both;animation-delay:calc(var(--i,0)*55ms)}
+.item:hover:not(.on){transform:translateX(5px)}
+.hero2{min-height:100%;display:grid;grid-template-columns:1fr 320px;gap:24px;align-items:center}
+.hl{min-width:0}.eyebrow{font-size:12px;font-weight:700;letter-spacing:.12em;color:var(--c);margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.eyebrow:before{content:"";width:8px;height:8px;border-radius:50%;background:var(--c);box-shadow:0 0 12px var(--c);animation:pu 2s infinite}@keyframes pu{50%{opacity:.35;transform:scale(.7)}}
+h1.g{font-size:54px;line-height:1.05;margin:0 0 16px;background:linear-gradient(120deg,var(--fg) 30%,var(--c));-webkit-background-clip:text;background-clip:text;color:transparent;word-break:break-word}
+.hl .chips{justify-content:flex-start}
+.acts{display:flex;align-items:center;gap:14px;margin-top:30px}.acts .play{margin:0;padding:16px 64px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin-top:34px}
+.st{padding:13px 15px;border-radius:16px;background:var(--card);backdrop-filter:blur(30px);box-shadow:var(--sh);transition:.25s var(--sp)}.st:hover{transform:translateY(-4px)}
+.st small{display:block;color:var(--mut);font-size:11px;font-weight:600;letter-spacing:.04em}.st b{font-size:19px;letter-spacing:-.02em}
+.fresh .hl>*{animation:in .65s var(--sp) both;animation-delay:calc(var(--i,0)*80ms)}.fresh .hr{animation:pop .9s var(--sp) both .15s}
+.hr{display:flex;flex-direction:column;align-items:center}
+.sk{width:300px;height:380px;margin:0;filter:drop-shadow(0 30px 34px color-mix(in srgb,var(--c) 50%,transparent))}
+.ped{width:230px;height:30px;border-radius:50%;background:radial-gradient(var(--c),transparent 70%);filter:blur(9px);margin-top:-22px;animation:pu 4s ease-in-out infinite}
+.dl{border:0;background:none;color:var(--mut);font-weight:500;padding:6px 8px;transition:.2s}.dl:hover{color:#ff453a}
+.card:hover,.row:hover{transition:.2s}
+.sk canvas{display:block;max-width:100%;cursor:grab}.hint{color:var(--mut);font-size:11px;margin-top:12px;font-weight:500;text-align:center}
+
+@font-face{font-family:Monocraft;src:url('vendor/Monocraft.ttf') format('truetype');font-weight:100 900;font-display:swap}
+body,button,input,select,textarea,.log,.con{font-family:Monocraft,monospace;font-variant-ligatures:none;letter-spacing:0;font-weight:400}
+body{font-size:12px;line-height:1.6}b,strong{font-weight:400}.seg button{padding:5px 12px}h1.g{font-size:38px;letter-spacing:-1px;line-height:1.25}.t{font-size:22px}
+.play,.acts .play{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-width:180px;min-height:54px;padding:14px 30px;border:1px solid #ffffff35;border-radius:18px;background:linear-gradient(165deg,#63c7ff,#38a6f4 55%,#248be4);color:#fff;font-size:18px;font-weight:400;letter-spacing:0;text-shadow:none;box-shadow:0 4px 10px #00000018,inset 0 1px 0 #ffffff40;overflow:hidden;isolation:isolate;transition:transform .22s cubic-bezier(.2,.8,.2,1),background .22s,box-shadow .22s}
+.play::after{display:block;content:"";position:absolute;inset:-35% -50%;background:linear-gradient(110deg,transparent 40%,#ffffff26 50%,transparent 60%);transform:translateX(-100%) skewX(-15deg);animation:none;transition:transform .65s ease;pointer-events:none;z-index:-1}
+.play:hover:not(:disabled){transform:translateY(-2px);background:linear-gradient(165deg,#7ed2ff,#49b4fa 55%,#3199ed);box-shadow:0 6px 14px #00000020,inset 0 1px 0 #ffffff55}
+.play:hover:not(:disabled)::after{transform:translateX(100%) skewX(-15deg)}
+.play:active:not(:disabled){transform:translateY(0) scale(.97);box-shadow:0 1px 3px #00000018,inset 0 1px 2px #00000010}
+.play:focus-visible{outline:2px solid #74caff;outline-offset:4px}
+.play:disabled{cursor:wait;opacity:.75;transform:none;box-shadow:0 2px 5px #00000012}
+.play:disabled::before{content:"";width:15px;height:15px;border:2px solid #ffffff55;border-top-color:#fff;border-radius:50%;animation:play-spin .8s linear infinite;flex:none}
+@keyframes play-spin{to{transform:rotate(360deg)}}
+/* Flat lighting: no coloured halos around the character, controls or background. */
+.glow{display:none}.ped{visibility:hidden;animation:none}.sk,.skin{filter:none}.sk.stage{background:none}
+.item.on{box-shadow:none}.big{box-shadow:inset 0 0 0 1px #ffffff30}.eyebrow:before,.dot2.on{box-shadow:none}
+@media(prefers-reduced-motion:reduce){.play,.play::after{transition:none}.play:hover:not(:disabled),.play:active:not(:disabled){transform:none}.play::after{display:none}.play:disabled::before{animation:none}}
+
+.acts{flex-wrap:wrap}.stats{grid-template-columns:repeat(auto-fit,minmax(125px,1fr))}.st small{font-size:10px}.st b{font-size:17px}.row{flex-wrap:wrap}.row p{font-size:11px}.row>div:first-child{overflow-wrap:anywhere}
+.row>div:not(.sw){flex:1;min-width:0}
+.fav{color:#a97605}.fav.on{color:#ffce45}.updates,.diagnosis{padding:16px;margin:16px 0;border:1px solid var(--line);border-radius:12px;background:var(--card)}.updates p,.diagnosis p{color:var(--mut);font-size:11px}.diagnosis{border-left:4px solid #ff9f0a}.diagnosis pre{white-space:pre-wrap;overflow-wrap:anywhere;font:10px/1.6 Monocraft,monospace;user-select:text;max-height:130px;overflow:auto}.updates .row{padding:10px 0}.updates button{flex-shrink:0}.row button:disabled{opacity:.5;cursor:wait}.updates label{display:flex;align-items:center;gap:10px;overflow-wrap:anywhere}.sk{transition:background .2s;border-radius:18px}
+@media(max-width:980px){aside{width:210px}section{padding:22px}.hero2{grid-template-columns:minmax(0,1fr) 280px;gap:12px}.sk{width:280px;height:355px}.seg button{padding:5px 8px}h1.g{font-size:30px}.acts .play{padding:12px 26px}.hint{max-width:270px;font-size:10px}}
+
+
+:root{color-scheme:dark;--bg:#08090b;--side:#101114;--fg:#f3f5f7;--mut:#9b9fa9;--line:#ffffff12;--card:#191b20;--fill:#ffffff0a;--sh:0 2px 8px #00000018}
+:root[data-theme="graphite"]{color-scheme:dark;--bg:#20232a;--side:#282c34;--fg:#f2f4f8;--mut:#acb4c2;--line:#ffffff16;--card:#30353f;--fill:#ffffff0c;--sh:0 2px 8px #00000018}
+:root[data-theme="light"]{color-scheme:light;--bg:#f4f6fa;--side:#e9edf4;--fg:#202938;--mut:#667085;--line:#14203314;--card:#fff;--fill:#14203308;--sh:0 2px 8px #1420330a}
+body,aside,.grp,.st,dialog{transition:background-color .2s,color .2s}aside{background:var(--side)}
+.theme-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:10px 0 24px}.theme-choice{padding:12px;border-radius:12px;border:2px solid transparent;background:var(--card);text-align:left;font-size:11px}.theme-choice[aria-pressed="true"]{border-color:#43b5ff}.theme-preview{display:flex;gap:5px;height:46px;border:1px solid #8883;border-radius:6px;margin-bottom:10px;padding:7px}.theme-preview:before{content:"";width:18%;background:#ffffff18;border-right:1px solid #8883}.theme-preview:after{content:"";width:48%;height:10px;align-self:center;border-radius:3px;background:#43b5ff}.theme-preview.black{background:#08090b}.theme-preview.graphite{background:#30353f}.theme-preview.light{background:#e9edf4}
+#dropzone{position:fixed;inset:16px;z-index:50;border:2px dashed #54bbff;border-radius:20px;background:var(--bg);opacity:.97;display:none;place-content:center;text-align:center;pointer-events:none}#dropzone.visible{display:grid}#dropzone b{font-size:22px}#dropzone p{color:var(--mut)}
+#packDlg{width:min(460px,90vw)}#packDlg progress{width:100%;height:12px;accent-color:#43b5ff;margin:20px 0 10px}#packStatus{color:var(--mut);font-size:11px;overflow-wrap:anywhere}#packDlg .b{margin-top:12px}
+
+
+.mod-tools{display:flex;flex-wrap:wrap;gap:8px;margin:20px 0 12px}.compatibility{padding:16px;background:var(--card);border:1px solid var(--line);border-left:3px solid #43b5ff;border-radius:12px;margin:12px 0}.compatibility.has-errors{border-left-color:#ff6b6b}.compatibility.has-warnings{border-left-color:#e5af45}.compatibility p{font-size:11px;color:var(--mut)}.compatibility li{font-size:11px;margin:10px 0;overflow-wrap:anywhere}.compatibility .error{color:#ff8585}.compatibility .warning{color:var(--mut)}.compatibility ul{padding-left:18px}.backup-list{max-height:350px;overflow:auto;margin:16px 0}.backup-card{padding:12px 0;border-bottom:1px solid var(--line)}.backup-card p{color:var(--mut);font-size:10px;overflow-wrap:anywhere}.tool-status{font-size:11px;color:var(--mut)}#rollbackDlg,#compatDlg{width:min(580px,92vw)}#compatDetails{max-height:50vh;overflow:auto}.dialog-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px;flex-wrap:wrap}
+
+:root{--ease-out:cubic-bezier(.22,1,.36,1);--ease-soft:cubic-bezier(.2,.8,.2,1);--sp:var(--ease-out)}
+section{animation:none;transform-origin:50% 35%}.theme-choice{transition:transform .24s var(--ease-out),border-color .22s,background-color .3s,box-shadow .24s}.theme-choice:hover{transform:translateY(-4px);box-shadow:0 8px 16px #00000012}.theme-choice:active{transform:translateY(-1px) scale(.97)}.theme-preview{transition:transform .35s var(--ease-out)}.theme-choice:hover .theme-preview{transform:scale(1.025)}
+button,.item,.b,.dl,.x{transition:transform .22s var(--ease-out),background-color .2s,color .2s,opacity .2s}.b:hover:not(:disabled){transform:translateY(-2px)}.b:active:not(:disabled){transform:translateY(0) scale(.96)}button:focus-visible{outline:2px solid #54bbff;outline-offset:3px}.item{transition:transform .24s var(--ease-out),background-color .2s}.item.on .ic{animation:icon-select .35s var(--ease-out)}
+.pill{transition:left .36s var(--ease-out),width .36s var(--ease-out),background-color .25s}.card,.st{transition:transform .3s var(--ease-out),background-color .3s,box-shadow .3s}.card:hover,.st:hover{transform:translateY(-3px)}
+.grp>.row{transition:background-color .2s}.grp>.row:hover{background:var(--fill)}.sw:after{transition:left .28s cubic-bezier(.3,1.35,.4,1),width .18s,transform .2s}.sw:active:after{transform:scale(.9)}
+.theme-grid{animation:soft-rise .45s var(--ease-out) both}.theme-choice:nth-child(2){animation-delay:45ms}.theme-choice:nth-child(3){animation-delay:90ms}
+.mod-tools .b{animation:soft-rise .35s var(--ease-out) both}.mod-tools .b:nth-child(2){animation-delay:40ms}.mod-tools .b:nth-child(3){animation-delay:80ms}
+.compatibility,.diagnosis,.updates{animation:soft-rise .4s var(--ease-out) both}.backup-card{animation:soft-rise .3s var(--ease-out) both}.fav{transition:transform .2s var(--ease-out),color .2s}.fav.on{animation:star-pop .35s var(--ease-out)}
+dialog[open]{animation:dialog-enter .32s var(--ease-out) both;transform-origin:center}dialog[open]::backdrop{animation:backdrop-enter .25s ease both}dialog.is-closing{animation:dialog-exit .18s ease both}dialog.is-closing::backdrop{animation:backdrop-exit .18s ease both}
+.toast{border-radius:14px;animation:toast-enter .35s var(--ease-out) both;max-width:min(600px,90vw)}
+.tap-ripple{position:absolute;left:var(--tap-x);top:var(--tap-y);width:18px;height:18px;border-radius:50%;background:#ffffff30;pointer-events:none;animation:tap-ripple .55s ease-out forwards;z-index:0}.b{position:relative;overflow:hidden}
+html.theme-changing *,html.theme-changing *:before,html.theme-changing *:after{transition:none!important}
+::view-transition-old(root),::view-transition-new(root){animation:none;mix-blend-mode:normal}::view-transition-old(root){z-index:1}::view-transition-new(root){z-index:2}
+@keyframes soft-rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes icon-select{from{transform:scale(.88)}to{transform:scale(1)}}
+@keyframes star-pop{0%{transform:scale(.8)}55%{transform:scale(1.2)}100%{transform:scale(1)}}
+@keyframes dialog-enter{from{opacity:0;transform:translateY(16px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes dialog-exit{to{opacity:0;transform:translateY(8px) scale(.98)}}
+@keyframes backdrop-enter{from{opacity:0}to{opacity:1}}@keyframes backdrop-exit{to{opacity:0}}
+@keyframes toast-enter{from{opacity:0;transform:translate(-50%,12px) scale(.98)}to{opacity:1;transform:translate(-50%,0) scale(1)}}
+@keyframes tap-ripple{from{opacity:.7;transform:translate(-50%,-50%) scale(0)}to{opacity:0;transform:translate(-50%,-50%) scale(18)}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}.tap-ripple{display:none}}
+
+
+.st.pointer-motion,.card.pointer-motion,.theme-choice.pointer-motion{transform:perspective(700px) rotateX(var(--tilt-x,0deg)) rotateY(var(--tilt-y,0deg)) translateY(-4px);will-change:transform}
+.acts .play.pointer-motion:hover:not(:disabled){transform:translate(var(--magnet-x,0px),var(--magnet-y,0px)) translateY(-2px)}
+.item{position:relative}.item.on:before{content:"";position:absolute;left:3px;top:22%;bottom:22%;width:3px;border-radius:3px;background:#ffffffa0;animation:selection-grow .45s cubic-bezier(.2,1.5,.4,1)}
+.add:hover .ic{transform:rotate(90deg) scale(1.1)}.add[data-act=importpack]:hover .ic{transform:translateY(3px)}.ic{transition:transform .35s cubic-bezier(.2,1.4,.3,1)}
+.seg button{transition:color .2s,transform .25s var(--ease-out)}.seg button:hover:not(.on){transform:translateY(-2px);color:var(--fg)}.seg button:active{transform:translateY(1px) scale(.95)}
+.chip{transition:transform .25s var(--ease-out),background-color .2s}.chip:hover{transform:translateY(-3px) rotate(-1deg);background:var(--line)}
+input:not([type=range]):focus{animation:input-settle .32s var(--ease-out)}input[type=range]{transition:filter .2s,transform .2s}input[type=range]:hover{transform:scaleY(1.15)}input[type=range]:active{transform:scaleY(1.3)}
+.compatibility li{animation:soft-rise .4s var(--ease-out) backwards}.compatibility li:nth-child(2){animation-delay:50ms}.compatibility li:nth-child(3){animation-delay:100ms}
+.bar{position:relative}.bar i{transition:width .6s cubic-bezier(.16,1,.3,1)}.bar:after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,#ffffff55,transparent);animation:download-sweep 1.5s ease-in-out infinite;pointer-events:none}
+#dropzone.visible{animation:drop-enter .35s var(--ease-out)}#dropzone.visible b{animation:soft-rise .4s var(--ease-out)}
+@keyframes selection-grow{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+@keyframes input-settle{0%{transform:translateY(1px)}60%{transform:translateY(-1px)}100%{transform:translateY(0)}}
+@keyframes download-sweep{to{transform:translateX(100%)}}@keyframes drop-enter{from{opacity:0;transform:scale(.97)}to{opacity:.97;transform:scale(1)}}
+@media(prefers-reduced-motion:reduce){.st.pointer-motion,.card.pointer-motion,.theme-choice.pointer-motion,.acts .play.pointer-motion:hover:not(:disabled){transform:none;will-change:auto}.add:hover .ic,.add[data-act=importpack]:hover .ic,.chip:hover,.seg button:hover:not(.on){transform:none}}
+
+.bar2{flex-wrap:wrap}.bar2 input#q{min-width:160px}.b:disabled{opacity:.45;cursor:not-allowed}.b:disabled:hover{transform:none;background:var(--fill);color:var(--acc)}
+.creator-credit{margin:28px 0 8px;text-align:center;font-size:10px;line-height:1.5;color:var(--mut);opacity:.7}
+.mod-row b{font-size:11px;overflow-wrap:anywhere}.mod-row .danger{color:#ff8585}.mod-row .danger:hover{background:#af3030;color:white}#removedDlg{width:min(560px,92vw)}.seg button{padding-left:9px;padding-right:9px}
+.play.running:disabled::before{display:none}
+.instance-delete{flex:none;margin-top:10px;min-height:36px;color:#ff6b6b;border:1px solid #ff6b6b44;background:#ff6b6b0c}.instance-delete:hover:not(:disabled){background:#ff6b6b20}.instance-delete:disabled{opacity:.4;cursor:not-allowed}
+.brand-lockup{display:flex;align-items:center;gap:9px;padding:0 10px 16px;font-size:17px;font-weight:500;letter-spacing:-.4px}.brand-lockup img{width:28px;height:28px;display:block}.big:has(img){background:transparent!important;box-shadow:none}.big img{width:100%;height:100%;object-fit:contain}
+</style><script src="vendor/millida-animations.js"></script><script src="java-version.js"></script><script src="game-versions.js"></script><script src="crash-analysis.js"></script><script src="motion.js"></script><script src="character.js"></script>
+</head><body>
+<aside id="side"></aside><main><div class="glow" id="glow"></div><nav><div class="seg" id="tabs"></div></nav><section id="view"></section></main>
+<div id="dropzone"><b>Импорт сборки</b><p>Отпустите файл .mrpack</p></div><dialog id="packDlg"><b>Импорт сборки</b><progress id="packProgress"></progress><div id="packStatus">Выберите файл .mrpack…</div><p style="color:var(--mut);font-size:11px">Сборка появится отдельным инстансом.</p></dialog>
+<dialog id="worldsDlg"><b>Копии миров</b><p class="tool-status">Перед восстановлением сохраняется текущее состояние миров.</p><div id="worldList" class="backup-list"></div><div class="dialog-actions"><button class="b" data-act="backupworlds">Создать копию</button><button class="b" data-act="closeworlds">Закрыть</button></div></dialog><dialog id="rollbackDlg"><b>Откат обновления модов</b><p class="tool-status">Сначала будет сохранена копия текущих файлов. Изменённые вручную моды не перезаписываются.</p><div id="backupList" class="backup-list"></div><div class="dialog-actions"><button class="b" data-act="closerollback">Закрыть</button></div></dialog>
+<dialog id="compatDlg"><b>Обнаружены проблемы с модами</b><div id="compatDetails"></div><div class="dialog-actions"><button class="b" data-act="cancelpreflight">Вернуться</button><button class="b" data-act="forceplay">Запустить всё равно</button></div></dialog>
+<dialog id="catalogDlg"><b>Версия контента</b><p class="tool-status">Каталог под выбранную версию. Версия существующей сборки не изменяется.</p><label>MINECRAFT</label><select id="catalogVersion"></select><label id="catalogLoaderLabel">ЗАГРУЗЧИК</label><select id="catalogLoader"><option>Vanilla</option><option>Fabric</option><option>Quilt</option><option>Forge</option><option>NeoForge</option></select><div class="dialog-actions"><button class="b" data-act="catalogcancel">Отмена</button><button class="b" data-act="catalogapply">Показать</button></div></dialog>
+<dialog id="removedDlg"><b>Удалённые моды</b><p class="tool-status">Здесь можно вернуть моды, удалённые из сборки.</p><div id="removedList" class="backup-list"></div><div class="dialog-actions"><button class="b" data-act="closeremoved">Закрыть</button></div></dialog><dialog id="dlg"><b style="font-size:19px;letter-spacing:-.02em">Новый инстанс</b>
+<label>НАЗВАНИЕ</label><input id="n" placeholder="Мой инстанс">
+<label>ВЕРСИЯ MINECRAFT</label><select id="v"></select>
+<label>ЗАГРУЗЧИК</label><select id="l"><option>Vanilla</option><option>Fabric</option><option>Quilt</option><option>Forge</option><option>NeoForge</option></select>
+<div style="display:flex;gap:8px;margin-top:22px;justify-content:flex-end"><button class="b" id="x">Отмена</button><button class="b" id="ok" style="background:var(--acc);color:#fff;padding:5px 20px">Создать</button></div></dialog>
+<dialog id="dlg2"><b style="font-size:19px;letter-spacing:-.02em">Добавить сервер</b>
+<label>НАЗВАНИЕ</label><input id="sn" value="RageLand"><label>АДРЕС</label><input id="sh" value="mc.rageland.live">
+<div style="display:flex;gap:8px;margin-top:22px;justify-content:flex-end"><button class="b" id="x2">Отмена</button><button class="b" id="ok2" style="background:var(--acc);color:#fff;padding:5px 20px">Добавить</button></div></dialog><div id="onb"></div><div id="snow" class="snow"></div>
+<script>
+const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const S={logs:[],st:{},db:null,sel:null,tab:'play',type:'mod',hits:[],q:'',mods:[],playing:false,gameRunning:false,prog:0,log:'',acc:'',updatePlans:{},updateBusy:false,crash:null,onlyFavorites:false,characterMemory:{},importing:false,compatibility:{},toolBusy:false,preflightBusy:false,pendingLaunch:null,catalogVersion:null,catalogLoader:null,versions:[],catalogRequest:0,catalogLoading:false,catalogError:'',contentFiles:[],installs:{},installing:false,deleting:false,importError:'',discordStatus:'',modQuery:'',modFilter:'all',history:[],worldBackups:[],horizonPath:'',horizonLog:'',horizonBusy:false,launcherUpdate:{phase:'idle',message:'Обновления ещё не проверялись'}};
+const G=[['#0a84ff','#5e5ce6'],['#30d158','#0a9d6e'],['#ff9f0a','#ff453a'],['#ff375f','#bf5af2'],['#64d2ff','#0a84ff'],['#bf5af2','#5e5ce6']];
+const cur=()=>S.db.instances.find(i=>i.id===S.sel),gi=i=>G[Math.max(0,S.db.instances.indexOf(i))%6],grad=i=>{const[a,b]=gi(i);return`linear-gradient(145deg,${a},${b})`};
+let savedSnapshot=null,saveQueue=Promise.resolve();
+function acceptDb(db){S.db=db;savedSnapshot=structuredClone(db);}
+function persist(){const next=structuredClone(S.db),base=savedSnapshot?structuredClone(savedSnapshot):null;savedSnapshot=structuredClone(next);const job=saveQueue.catch(()=>{}).then(()=>api.setDb(next,base));saveQueue=job;return job;}
+const fmt=n=>n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?Math.round(n/1e3)+'K':n;
+function toast(t){const e=document.createElement('div');e.className='toast';e.textContent=t;document.body.append(e);e.setAttribute('role','status');setTimeout(()=>{if(reducedMotion()){e.remove();return;}e.animate([{opacity:1,transform:'translate(-50%,0)'},{opacity:0,transform:'translate(-50%,8px)'}],{duration:180,easing:'ease-in',fill:'forwards'}).finished.finally(()=>e.remove());},3200)}
+window.addEventListener('error',e=>toast('Ошибка: '+e.message));window.addEventListener('unhandledrejection',e=>toast('Ошибка: '+(e.reason?.message||e.reason)));
+
+function snow(){$('#snow').innerHTML=S.db.settings.snow?Array.from({length:36},()=>{const z=2+Math.random()*3;return`<i style="left:${Math.random()*100}%;width:${z}px;height:${z}px;opacity:${.3+Math.random()*.5};animation-duration:${8+Math.random()*10}s;animation-delay:-${Math.random()*12}s"></i>`}).join(''):''}
+
+const motionUI=new NovaMotion();
+const reducedMotion=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
+let currentThemeTransition=null;
+async function changeTheme(theme,button){
+  if(!['black','graphite','light'].includes(theme)||(S.db.settings.theme||'black')===theme)return;
+  const rect=button.getBoundingClientRect(),x=rect.left+rect.width/2,y=rect.top+rect.height/2;
+  currentThemeTransition?.skipTransition();
+  S.db.settings.theme=theme;await persist();
+  if(reducedMotion()||!document.startViewTransition){render();return;}
+  document.documentElement.classList.add('theme-changing');
+  const transition=document.startViewTransition(()=>render());currentThemeTransition=transition;
+  try{
+    await transition.ready;
+    const radius=Math.hypot(Math.max(x,innerWidth-x),Math.max(y,innerHeight-y));
+    await document.documentElement.animate({clipPath:[`circle(0px at ${x}px ${y}px)`,`circle(${radius}px at ${x}px ${y}px)`]},{duration:620,easing:'cubic-bezier(.22,1,.36,1)',pseudoElement:'::view-transition-new(root)'}).finished;
+  }catch{}finally{if(currentThemeTransition===transition){document.documentElement.classList.remove('theme-changing');currentThemeTransition=null;}}
+}
+function closeDialog(dialog){
+  if(!dialog.open||dialog.classList.contains('is-closing'))return;
+  if(reducedMotion()){dialog.close();return;}
+  dialog.classList.add('is-closing');
+  setTimeout(()=>{dialog.close();dialog.classList.remove('is-closing');},180);
+}
+document.querySelectorAll('dialog:not(#packDlg)').forEach(dialog=>dialog.addEventListener('cancel',e=>{e.preventDefault();if(dialog.id==='compatDlg')S.pendingLaunch=null;closeDialog(dialog);}));
+document.addEventListener('pointerdown',e=>{
+  const button=e.target.closest('.play,.b');if(!button||button.disabled||reducedMotion())return;
+  const rect=button.getBoundingClientRect(),ripple=document.createElement('span');ripple.className='tap-ripple';ripple.style.setProperty('--tap-x',e.clientX-rect.left+'px');ripple.style.setProperty('--tap-y',e.clientY-rect.top+'px');ripple.setAttribute('aria-hidden','true');button.append(ripple);ripple.addEventListener('animationend',()=>ripple.remove(),{once:true});
+});
+function applyTheme(){const theme=['black','graphite','light'].includes(S.db.settings.theme)?S.db.settings.theme:'black';document.documentElement.dataset.theme=theme;}
+function render(){
+  applyTheme();
+  const tabs=['play','content','mods','servers','console','settings'],previousTab=(S.key||'play').split('|')[0],direction=Math.sign(tabs.indexOf(S.tab)-tabs.indexOf(previousTab))||1;
+  const key=S.tab+'|'+S.sel,fresh=S.key!==key,first=!S.rend;S.key=key;S.rend=1;
+  if(S.character){S.character.dispose();S.character=null}
+  if(S.v3){try{S.v3.dispose()}catch{}S.v3=null}
+  const i=cur(),s=S.db.settings;
+  if(S.presenceSelection!==S.sel){S.presenceSelection=S.sel;api.discordSelect?.(S.sel||null)?.catch(()=>{});}
+  $('#glow').style.setProperty('--c',i?gi(i)[0]:'#0a84ff');document.documentElement.style.setProperty('--acc',i?gi(i)[0]:'#0a84ff');
+  $('#side').innerHTML=`<div class="brand-lockup"><img src="assets/nova-mark.svg" alt=""><span>Nova</span></div><div class="h">ИНСТАНСЫ</div><div class="list-s ${first?'enter':''}">${S.db.instances.map((x,k)=>`<button class="item ${x.id===S.sel?'on':''}" style="--i:${k}" data-sel="${x.id}"><span class="ic" style="background:${grad(x)}">${esc(x.name[0].toUpperCase())}</span><span><b>${esc(x.name)}</b><small>${x.loader} · ${x.version}</small></span></button>`).join('')}<button class="item add" data-act="new"><span class="ic" style="background:var(--fill);color:var(--acc);box-shadow:none;font-size:20px">+</span><b>Новый инстанс</b></button><button class="item add" data-act="importpack" ${S.importing?'disabled':''}><span class="ic" style="background:var(--fill);color:#54bbff;box-shadow:none">↓</span><b>Импорт .mrpack</b></button></div>
+   <div class="mod-tools"><button class="b" data-tab="history">История</button><button class="b" data-tab="horizon">Horizon · Rust</button></div>${i?`<button class="b instance-delete" data-act="del" ${instanceDeleteBlocked()?'disabled':''}>${S.deleting?'Удаляем…':'Удалить инстанс'}</button>`:''}
+   <div class="acc"><img src="https://mc-heads.net/avatar/${encodeURIComponent(s.name)}/68" alt=""><div><b>${esc(s.name)}</b><small>${S.acc?'Microsoft':'Офлайн'}</small></div></div>`;
+  const tb=$('#tabs');tb.innerHTML=`<i class="pill" style="left:${S.pl||0}px;width:${S.pw||0}px"></i>`+Object.entries({play:'Играть',content:'Контент',mods:'Моды',servers:'Серверы',console:'Консоль',settings:'Настройки'}).map(([k,v])=>`<button class="${S.tab===k?'on':''}" data-tab="${k}">${v}</button>`).join('');
+  requestAnimationFrame(()=>{const a=tb.querySelector('.on'),p=tb.querySelector('.pill');if(a&&p){p.style.left=a.offsetLeft+'px';p.style.width=a.offsetWidth+'px';S.pl=a.offsetLeft;S.pw=a.offsetWidth}});
+  const v=$('#view');if(fresh&&!reducedMotion()){v.getAnimations().forEach(a=>a.cancel());v.animate([{opacity:0,transform:`translateX(${direction*20}px) scale(.985)`},{opacity:1,transform:'translateX(0) scale(1)'}],{duration:440,easing:'cubic-bezier(.16,1,.3,1)'});requestAnimationFrame(()=>motionUI.enter(v,direction));}
+  if(S.tab==='settings'){v.innerHTML=`<div style="max-width:600px"><h2 class="t">Настройки</h2>
+   <div class="cap">Тема оформления</div><div class="theme-grid">${[['black','Чёрная'],['graphite','Графит'],['light','Светлая']].map(([k,t])=>`<button class="theme-choice" data-theme-choice="${k}" aria-pressed="${(s.theme||'black')===k}"><span class="theme-preview ${k}"></span>${t}${k==='black'?'<p style="margin:4px 0 0;color:var(--mut);font-size:9px">По умолчанию</p>':''}</button>`).join('')}</div>
+   <div class="cap">Аккаунт</div><div class="grp">
+   <div class="row"><div>Ник<p>Для офлайн-режима</p></div><input id="nick" value="${esc(s.name)}" style="width:170px"></div>
+   <div class="row"><div>Microsoft<p>${esc(S.acc||'Вход не выполнен — игра в офлайн-режиме')}</p></div>${S.acc?'<button class="b" data-act="logout">Выйти</button>':'<button class="b" data-act="login">Войти</button>'}</div></div>
+   <div class="cap">Игра</div><div class="grp">
+   <div class="row"><div>Оперативная память<p id="ramv">${s.ram} ГБ</p></div><input id="ram" type="range" min="2" max="16" value="${s.ram}"></div>
+   <div class="row"><div>Скачивать Java автоматически<p>Нужная версия подберётся под Minecraft</p></div>${sw('autoJava',true)}</div>
+   <div class="row"><div>Свой путь к Java<p>Если указан, автоскачивание не используется</p></div><input id="java" value="${esc(s.java||'')}" placeholder="авто" style="width:190px"></div>
+   <div class="row"><div>Аргументы JVM<p>Например -XX:+UseG1GC</p></div><input id="jvm" value="${esc(s.jvm||'')}" style="width:190px"></div></div>
+   <div class="cap">Окно игры</div><div class="grp">
+   <div class="row"><div>Размер окна<p>Пусто — по умолчанию</p></div><input id="ww" value="${s.ww||''}" placeholder="ширина" style="width:80px"><input id="wh" value="${s.wh||''}" placeholder="высота" style="width:80px"></div>
+   <div class="row"><div>На весь экран</div>${sw('full')}</div></div>
+   <div class="cap">Проверка модов</div><div class="grp"><div class="row"><div>Проверять перед запуском<p>Быстрая локальная проверка зависимостей</p></div>${sw('checkBeforeLaunch',true)}</div></div>
+   <div class="cap">Discord</div><div class="grp"><div class="row"><div>Показывать активность<p>Сборка, версия Minecraft и время в игре</p></div>${sw('discordPresence',true)}</div><div class="row"><div>Application ID<p>Публичный ID приложения Nova, не токен бота</p></div><input id="discordAppId" value="${esc(s.discordAppId||'1568956638310699119')}" placeholder="Application ID" inputmode="numeric" style="width:210px"></div><div class="row"><div id="discordStatus" class="tool-status">${esc(S.discordStatus||'Укажите Application ID и откройте Discord')}</div><button class="b" data-act="discordstatus">Проверить</button></div></div>
+   <div class="cap">Персонаж</div><div class="grp">
+   <div class="row"><div>Следить за курсором</div>${sw('characterLook',true)}</div>
+   <div class="row"><div>Автоматические жесты</div>${sw('characterAuto',true)}</div>
+   <div class="row"><div>Реакция на нажатие</div>${sw('characterReact',true)}</div>
+   <div class="row"><div>Размер<p>С запасом для поднятых рук</p></div><select id="characterSize">${[['small','Меньше'],['normal','Обычный'],['large','Крупнее']].map(([k,t])=>`<option value="${k}" ${(s.characterSize||'normal')===k?'selected':''}>${t}</option>`).join('')}</select></div>
+   <div class="row"><div>Частота жестов</div><select id="characterFrequency">${[['calm','Редко'],['normal','Обычно'],['active','Часто']].map(([k,t])=>`<option value="${k}" ${(s.characterFrequency||'normal')===k?'selected':''}>${t}</option>`).join('')}</select></div></div>
+   <div class="cap">Лаунчер</div><div class="grp">
+   <div class="row"><div>Проверять обновления автоматически<p>При запуске и каждые четыре часа</p></div>${sw('autoUpdate',true)}</div><div class="row"><div>Обновления Nova<p id="updateStatus">${esc(S.launcherUpdate.message)}</p></div><button class="b" data-act="launchercheck">Проверить</button></div><div class="row"><div>Сервер обновлений<p>HTTPS-адрес каталога с latest.yml и установщиками</p></div><input id="updateFeed" value="${esc(s.updateFeed||'https://github.com/Kovtyndumas/NovaLauncher/releases/latest/download')}" placeholder="https://…" style="width:190px"></div>${S.launcherUpdate.phase==='available'?'<div class="row"><button class="b" data-act="launcherdownload">Скачать обновление</button></div>':S.launcherUpdate.phase==='downloaded'?'<div class="row"><button class="b" data-act="launcherinstall">Установить и перезапустить</button></div>':''}
+   <div class="row"><div>Снег</div>${sw('snow')}</div>
+   <div class="row"><div>Приветственный экран<p>Показать при следующем запуске</p></div><button class="b" data-act="resetonb">Сбросить</button></div></div><footer class="creator-credit">Created By Ktvx</footer></div>`;return}
+  if(S.tab==='servers'){const servers=S.db.servers.map((x,k)=>({...x,index:k})).filter(x=>!S.onlyFavorites||x.favorite).sort((a,b)=>Number(!!b.favorite)-Number(!!a.favorite));v.innerHTML=`<div class="bar2" style="flex-wrap:wrap;align-items:center"><h2 class="t" style="margin:0;flex:1">Серверы</h2><button class="b" data-act="favorites">${S.onlyFavorites?'Все серверы':'★ Избранное'}</button><button class="b" data-act="refreshsrv">Обновить</button><button class="b" data-act="addsrv">+ Добавить</button></div>
+   <div class="grp">${servers.map(x=>{const p=S.st[x.host];return`<div class="row"><button class="x fav ${x.favorite?'on':''}" data-fav="${x.index}" aria-label="${x.favorite?'Убрать из избранного':'В избранное'}">${x.favorite?'★':'☆'}</button><span class="dot2 ${p?(p.online?'on':'off'):''}"></span><div><b>${esc(x.name)}</b><p>${esc(x.host)}${p&&p.online?` · ${p.players?p.players.online+'/'+p.players.max:''} ${esc(p.version||'')}`:p?' · офлайн':' · проверка…'}</p></div><button class="b" data-join="${esc(x.host)}" ${S.playing?'disabled':''}>Играть</button><button class="x" data-svdel="${x.index}">×</button></div>`}).join('')||'<div class="row">'+(S.onlyFavorites?'Добавьте сервер в избранное кнопкой ☆':'Список пуст')+'</div>'}</div>`;return}
+  if(S.tab==='console'){v.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center"><h2 class="t" style="margin:0">Консоль</h2><div style="display:flex;gap:8px"><button class="b" data-act="copylog">Копировать</button><button class="b" data-act="clearlog">Очистить</button></div></div>${crashPanel()}<button class="b" data-act="analyze">Разобрать лог</button> <button class="b" data-act="lastcrash">Последний вылет</button><pre id="con" class="con">${esc(S.logs.join('\n')||'Здесь появятся логи игры и установки')}</pre>`;return}
+  if(S.tab==='history'){v.innerHTML=`<h2 class="t">История запусков</h2><p class="tool-status">Время в игре: ${duration(S.history.reduce((a,r)=>a+r.seconds,0))}. Незавершённые сеансы отмечены отдельно.</p><div class="grp">${S.history.map(r=>`<div class="row"><div><b>${esc(r.name)}</b><p>${esc(r.version)} · ${new Date(r.at).toLocaleString()} · ${duration(r.seconds)}${r.closed?'':' · сеанс не завершён'}</p></div>${r.engine==='horizon'?'<button class="b" data-tab="horizon">Horizon</button>':S.db.instances.some(i=>i.id===r.instanceId)?`<button class="b" data-replay="${esc(r.instanceId)}" ${instanceDeleteBlocked()?'disabled':''}>Играть</button>`:''}</div>`).join('')||'<div class="row">Здесь появятся запуски игры</div>'}</div>`;return;}
+  if(S.tab==='horizon'){v.innerHTML=`<h2 class="t">Horizon</h2><p class="tool-status">Minecraft на Rust · отдельный движок для Minecraft 26.3</p><div class="grp"><div class="row"><div><b>Horizon Launcher</b><p style="overflow-wrap:anywhere">${esc(S.horizonPath||'Сначала установите официальный Horizon Launcher')}</p></div></div><div class="row" style="flex-wrap:wrap;gap:8px"><button class="b" data-act="horizondownload">Скачать Horizon</button><button class="b" data-act="horizonchoose" ${S.horizonBusy?'disabled':''}>Выбрать приложение</button></div></div><p class="tool-status">1. Откройте Horizon и войдите в Microsoft с Java Edition.<br>2. Установите движок и подготовьте файлы.<br>3. Запустите игру здесь. Данные хранятся отдельно от Java-инстансов Nova; Java-моды из каталога Nova сюда не устанавливаются.</p><div class="mod-tools">${[['open','Открыть / войти'],['install','Установить движок'],['prepare','Подготовить файлы'],['versions','Установленные версии'],['play','Играть в Horizon']].map(([a,label])=>`<button class="b" data-horizon="${a}" ${!S.horizonPath||S.horizonBusy||instanceDeleteBlocked()?'disabled':''}>${label}</button>`).join('')}</div>${S.horizonBusy?'<p class="tool-status">Horizon выполняет команду…</p>':''}<pre id="horizonLog" class="con">${esc(S.horizonLog||'Установка, подготовка и вход выполняются официальным Horizon Launcher.')}</pre>`;return;}
+  if(!i){v.innerHTML=`<div class="hero"><div class="big" style="background:${grad({})};--c:#0a84ff"><img src="assets/nova-mark.svg" alt="Nova"></div><h1>Nova</h1><span class="chip">Создайте первый инстанс</span><button class="play" data-act="new">Создать</button></div>`;return}
+  if(S.tab==='mods'){v.innerHTML=`<h2 class="t">Моды сборки</h2><p class="tool-status">${esc(i.name)} · ${esc(i.loader)} ${esc(i.version)} · файлов: ${S.mods.length}</p><div class="mod-tools"><button class="b" data-act="checkupdates" ${S.updateBusy||S.playing?'disabled':''}>Проверить обновления</button><button class="b" data-act="rollback" ${S.playing?'disabled':''}>Откат</button><button class="b" data-act="removedmods">Удалённые</button><button class="b" data-act="compatibility">Совместимость</button><button class="b" data-tab="content">Каталог модов</button></div>${S.updatePlans[i.id]?updatesPanel(i):''}${compatibilityPanel(S.compatibility[i.id])}<div class="bar2"><input id="modQuery" style="flex:1;min-width:160px" placeholder="Поиск среди установленных модов" value="${esc(S.modQuery)}"><select id="modFilter">${[['all','Все'],['enabled','Включённые'],['disabled','Выключенные']].map(([k,t])=>`<option value="${k}" ${S.modFilter===k?'selected':''}>${t}</option>`).join('')}</select></div><div id="instanceModList" class="grp">${modRows()}</div>`;return;}
+  if(S.tab==='play'){v.innerHTML=`<div class="hero2 ${fresh?'fresh':''}" style="--c:${gi(i)[0]}"><div class="hl">
+   <div class="eyebrow" style="--i:0">${S.gameRunning?'ИГРА ЗАПУЩЕНА':S.playing?'ЗАПУСК ИГРЫ':'ГОТОВ К ЗАПУСКУ'}</div><h1 class="g" style="--i:1">${esc(i.name)}</h1>
+   <div class="chips" style="--i:2"><span class="chip">${i.loader}</span><span class="chip">Minecraft ${i.version}</span></div>
+   <div class="acts" style="--i:3"><button class="play ${S.gameRunning?'running':''}" data-act="play" ${S.playing?'disabled':''}>${S.gameRunning?'Игра запущена':S.playing?'Запуск…':'Играть'}</button><button class="b" data-act="managemods">Моды сборки</button><button class="b" data-act="duplicate" ${instanceDeleteBlocked()?'disabled':''}>Копия</button><button class="b" data-act="worlds" ${instanceDeleteBlocked()?'disabled':''}>Миры</button><button class="b" data-act="dir">Папка</button><button class="b instance-delete" style="margin-top:0" data-act="del" ${instanceDeleteBlocked()?'disabled':''}>Удалить инстанс</button></div>
+   ${S.playing&&!S.gameRunning?`<div class="bar" style="width:100%;max-width:340px"><i style="width:${Math.max(4,S.prog*100)}%"></i></div><div class="log" style="max-width:340px">${esc(S.log)}</div>`:''}
+   ${crashPanel()}
+   <div class="stats" style="--i:4"><div class="st"><small>MINECRAFT</small><b>${i.version}</b></div><div class="st"><small>ЗАГРУЗЧИК</small><b>${i.loader}</b></div><div class="st"><small>МОДОВ</small><b data-count="${S.mods.length}">${S.mods.length}</b></div><div class="st"><small>JAVA</small><b>${jv(i.version)}</b></div></div>
+   </div><div class="hr"><div class="sk"><canvas id="skin3d"></canvas></div><div class="ped"></div><div class="hint">Следит за курсором · нажми или перетащи</div></div></div>`;mount3d();return}
+  const filter=catalogFilter(),same=filter.ver===i.version&&(S.type!=='mod'||filter.loader===i.loader),canInstall=S.type==='modpack'||same;
+  v.innerHTML=`<div class="bar2" style="align-items:center;justify-content:space-between"><h2 class="t" style="margin:0">Контент</h2><button class="b" data-act="importpack" ${S.importing?'disabled':''}>Импорт .mrpack</button></div><div class="bar2"><select id="ty">${[['mod','Моды'],['modpack','Модпаки'],['shader','Шейдеры'],['resourcepack','Ресурспаки']].map(([k,t])=>`<option value="${k}" ${S.type===k?'selected':''}>${t}</option>`).join('')}</select>
+   <button class="b" data-act="catalogversion">Версия: ${esc(filter.ver)}${S.type==='mod'?' · '+esc(filter.loader):''} ▾</button></div><div class="bar2"><input id="q" style="flex:1;min-width:0" placeholder="Поиск на Modrinth · Minecraft ${esc(filter.ver)}" value="${esc(S.q)}"><button class="b" data-act="go" style="background:var(--acc);color:#fff">Найти</button></div>
+   <div class="updates" style="margin-top:0"><b>${S.type==='modpack'?'Сборки для Minecraft '+esc(filter.ver):same?'Подборка для вашей сборки':'Просмотр другой версии'}</b><p>${catalogDescription()}${!same&&S.type!=='modpack'?' Для установки создайте отдельный инстанс с этими параметрами.':''}</p>${!same?'<button class="b" data-act="catalogcreate">Создать инстанс</button> <button class="b" data-act="catalogreset">Вернуться к сборке</button>':''}</div>
+   ${S.catalogLoading?'<p class="tool-status">Подбираем совместимый контент…</p>':S.catalogError?`<p class="tool-status">${esc(S.catalogError)}</p><button class="b" data-act="go">Повторить</button>`:''}
+   ${S.hits.length?`<div class="grid">${S.hits.map(h=>catalogCard(h,i,canInstall)).join('')}</div>`:`<div class="chip" style="display:inline-block">${S.catalogLoading?'Загружаем подборку':S.catalogError?'Каталог недоступен':'Для этих параметров контента пока нет. Выберите другую версию или уточните поиск.'}</div>`}
+   ${['shader','resourcepack'].includes(S.type)?`<div class="mod-tools"><button class="b" data-act="contentfolder">Папка ${S.type==='shader'?'шейдеров':'ресурспаков'}</button></div><div class="cap">Установлено · ${S.contentFiles.length}</div><div class="grp">${S.contentFiles.map(f=>`<div class="row" style="gap:8px;flex-wrap:wrap"><div style="flex:1;min-width:150px;overflow-wrap:anywhere">${esc(f.name)}<p>${f.active?'Включён':'Выключен'}</p></div><button class="b" data-content-action="toggle" data-content-name="${esc(f.name)}" ${instanceDeleteBlocked()?'disabled':''}>${f.active?'Выключить':'Включить'}</button>${f.project?`<button class="b" data-content-action="update" data-content-name="${esc(f.name)}" ${instanceDeleteBlocked()?'disabled':''}>Обновить</button>`:''}<button class="b" data-content-action="remove" data-content-name="${esc(f.name)}" ${instanceDeleteBlocked()?'disabled':''}>Удалить</button></div>`).join('')||'<div class="row">Пока пусто</div>'}</div>`:''}
+   ${S.type==='mod'?`${modTools(i)}${updatesPanel(i)}<div class="cap">Установлено · ${S.mods.length}</div><div class="grp">${S.mods.map(m=>`<div class="row"><div>${esc(m.replace(/\.disabled$/,''))}</div><div class="sw ${m.endsWith('.disabled')?'':'on'}" data-tg="${esc(m)}"></div></div>`).join('')||'<div class="row"><div class="mut" style="color:var(--mut)">Пока пусто</div></div>'}</div>`:''}`;
+}
+async function importLocalPack(source){
+  if(S.importing||S.playing){toast('Закройте игру и дождитесь окончания импорта');return;}
+  S.importing=true;S.importError='';render();$('#packStatus').textContent=typeof source==='function'?'Загружаем сборку с Modrinth…':'Выберите файл .mrpack…';$('#packProgress').removeAttribute('value');$('#packDlg').showModal();
+  try{
+    const inst=await (typeof source==='function'?source():api.importPack(source));
+    if(inst){acceptDb(await api.getDb());S.db.servers=S.db.servers||[];S.sel=inst.id;S.tab='play';S.hits=[];S.crash=null;await loadMods();toast('Сборка «'+inst.name+'» импортирована');}return inst;
+  }catch(e){S.importError=e.message;toast(e.message);return null;}finally{S.importing=false;$('#packDlg').close();render();}
+}
+$('#packDlg').addEventListener('cancel',e=>e.preventDefault());
+let dragDepth=0;
+document.addEventListener('dragenter',e=>{if([...e.dataTransfer.types].includes('Files')){e.preventDefault();dragDepth++;$('#dropzone').classList.add('visible');}});
+document.addEventListener('dragover',e=>{if([...e.dataTransfer.types].includes('Files')){e.preventDefault();e.dataTransfer.dropEffect='copy';}});
+document.addEventListener('dragleave',()=>{dragDepth=Math.max(0,dragDepth-1);if(!dragDepth)$('#dropzone').classList.remove('visible');});
+document.addEventListener('drop',e=>{e.preventDefault();dragDepth=0;$('#dropzone').classList.remove('visible');const files=[...e.dataTransfer.files];if(files.length!==1||!files[0].name.toLowerCase().endsWith('.mrpack')){toast('Перетащите один файл .mrpack');return;}const file=api.filePath(files[0]);if(!file){toast('Не удалось прочитать путь к файлу');return;}importLocalPack(file);});
+api.on('pack:progress',p=>{const bar=$('#packProgress');bar.max=p.total||1;bar.value=p.done||0;$('#packStatus').textContent=(p.total?p.done+' / '+p.total+' · ':'')+p.message;});
+function crashPanel(){const c=S.crash;if(!c||c.instanceId&&c.instanceId!==S.sel)return '';return `<div class="diagnosis"><b>${esc(c.title)}</b><p>Вероятная причина${c.code!=null?' · код '+esc(c.code):''}</p><p>${esc(c.advice)}</p>${c.evidence?.length?`<pre>${esc(c.evidence.join('\n'))}</pre>`:''}<button class="b" data-tab="console">Консоль</button> <button class="b" data-act="dismisscrash">Скрыть</button></div>`;}
+function modRows(){const mods=S.mods.filter(m=>(S.modFilter==='all'||(m.endsWith('.disabled')?'disabled':'enabled')===S.modFilter)&&m.toLowerCase().includes(S.modQuery.toLowerCase()));return mods.map(m=>`<div class="row mod-row"><div><b>${esc(m.replace(/\.jar(?:\.disabled)?$/,''))}</b><p>${m.endsWith('.disabled')?'Выключен':'Включён'}</p></div><button class="b" data-tg="${esc(m)}" ${S.playing?'disabled':''}>${m.endsWith('.disabled')?'Включить':'Выключить'}</button><button class="b danger" data-remove-mod="${esc(m)}" ${S.playing?'disabled':''}>Удалить</button></div>`).join('')||'<div class="row"><p class="tool-status">'+(S.mods.length?'По вашему запросу ничего не найдено':'В этой сборке пока нет модов')+'</p></div>';}
+async function showRemoved(){const id=S.sel,files=await api.removedMods(id);if(S.sel!==id)return;$('#removedList').innerHTML=files.map(f=>`<div class="backup-card"><b>${esc(f.name)}</b><p>${esc(new Date(f.at).toLocaleString('ru-RU'))}</p><button class="b" data-restore-removed="${esc(f.id)}" ${f.restored||S.playing?'disabled':''}>${f.restored?'Восстановлен':'Восстановить'}</button></div>`).join('')||'<p class="tool-status">Удалённых модов нет</p>';if(!$('#removedDlg').open)$('#removedDlg').showModal();}
+function compatibilityPanel(report){if(!report)return '';return `<div class="compatibility ${report.errors?'has-errors':report.warnings?'has-warnings':''}"><b>${report.errors?'Проблемы: '+report.errors:report.warnings?'Есть предупреждения':'Известных проблем не найдено'}</b><p>Проверено модов: ${report.checked} · выключено: ${report.disabled}. ${report.online?'Дополнительно проверены метаданные Modrinth.':'Локальная проверка; Modrinth не использовался или недоступен.'}</p>${report.issues.length?`<ul>${report.issues.map(x=>`<li class="${x.severity==='error'?'error':'warning'}"><b>${esc(x.file)}</b><br>${esc(x.message)}</li>`).join('')}</ul>`:''}<p>Проверка метаданных не выявляет все конфликты поведения модов.</p></div>`;}
+function modTools(i){return `<div class="mod-tools"><button class="b" data-act="compatibility" ${S.toolBusy||S.playing?'disabled':''}>Проверить совместимость</button><button class="b" data-act="exportpack" ${S.toolBusy||S.playing?'disabled':''}>Экспорт .mrpack</button><button class="b" data-act="rollback" ${S.toolBusy||S.playing?'disabled':''}>Откат модов</button></div>${S.toolBusy?'<p class="tool-status">Выполняется операция…</p>':''}${compatibilityPanel(S.compatibility[i.id])}`;}
+async function showBackups(){const id=S.sel,backups=await api.backups(id);if(S.sel!==id)return;$('#backupList').innerHTML=backups.length?backups.map(x=>`<div class="backup-card"><b>${esc(new Date(x.at).toLocaleString('ru-RU'))} · модов: ${x.count}</b><p>${x.files.map(esc).join('<br>')}</p>${x.legacy?'<p>Старая копия без контрольных сумм: точная версия текущих файлов не проверяется.</p>':''}<button class="b" data-restore="${esc(x.id)}" ${x.restored?'disabled':''}>${x.restored?'Уже восстановлена':'Восстановить'}</button></div>`).join(''):'<p class="tool-status">Пока нет копий. Они появятся после обновления модов.</p>';if(!$('#rollbackDlg').open)$('#rollbackDlg').showModal();}
+function updatesPanel(i){const plan=S.updatePlans[i.id];return `<div class="updates"><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><b style="flex:1">Обновление модов</b><button class="b" data-act="checkupdates" ${S.updateBusy||S.playing?'disabled':''}>${S.updateBusy?'Подождите…':'Проверить'}</button></div><p>Стабильные версии Modrinth · ${esc(i.loader)} ${esc(i.version)}. Перед заменой сохраняется копия в backups/mods.</p>${plan?plan.updates.length?`${plan.updates.map(u=>`<div class="row"><label><input type="checkbox" data-update="${esc(u.name)}" checked ${S.updateBusy?'disabled':''}><span>${esc(u.name)}<p>${esc(u.fromVersion)} → ${esc(u.version)}</p></span></label></div>`).join('')}<button class="b" data-act="applyupdates" ${S.updateBusy||S.playing?'disabled':''}>Обновить выбранные</button>`:'<p>Совместимых обновлений не найдено.</p>':''}${plan?.unknown.length?`<p>Не распознано на Modrinth: ${plan.unknown.length}. Эти файлы останутся без изменений.</p>`:''}</div>`;}
+const loadMods=async()=>{const i=cur(),id=i?.id;const mods=i?await api.mods(id):[];if(cur()?.id===id)S.mods=mods;};
+function instanceDeleteBlocked(){return S.playing||S.preflightBusy||S.installing||S.importing||S.toolBusy||S.updateBusy||S.deleting;}
+function catalogKey(id,type,project){return [id,type,project].join('|');}
+function catalogDescription(){const f=catalogFilter();return S.type==='modpack'?'Сборка устанавливается отдельным инстансом со своим загрузчиком.':S.type==='shader'?'Для работы нужен Iris или OptiFine. После установки выберите шейдер в настройках графики Minecraft.':S.type==='resourcepack'?'После установки включите пакет в Minecraft: Настройки → Наборы ресурсов.':esc(f.loader)+' · Minecraft '+esc(f.ver)+'. Совместимая версия мода и обязательные зависимости подбираются при установке.';}
+function catalogCard(h,i,canInstall){
+ const status=S.installs[catalogKey(i.id,S.type,h.project_id)],done=status?.state==='done'||S.contentFiles.some(f=>f.project===h.project_id),busy=status?.state==='busy';
+ const label=busy?'Устанавливаем…':done?'Установлено':status?.state==='error'?'Повторить':!canInstall?'Другая версия':S.type==='modpack'?'Установить сборку':'Установить';
+ return `<div class="card"><img src="${esc(h.icon_url||'')}" alt=""><div><b>${esc(h.title)}</b><p>${esc(h.description)}</p>${status?.state==='error'?`<p role="alert" style="color:#ff8585">${esc(status.message)}</p>`:''}<footer><span>↓ ${fmt(h.downloads)}</span><button class="b ${done?'ok':''}" data-ins="${esc(h.project_id)}" ${!canInstall||S.playing||S.installing||S.deleting||done?'disabled':''}>${label}</button></footer></div></div>`;
+}
+async function loadContentFiles(){const id=S.sel,type=S.type;if(!['shader','resourcepack'].includes(type)){S.contentFiles=[];return;}const files=await api.contentFiles(id,type);if(id===S.sel&&type===S.type)S.contentFiles=files;}
+function catalogFilter(){const i=cur();return {ver:S.catalogVersion||i.version,loader:S.catalogLoader||(i.loader==='Vanilla'&&S.type==='mod'?'Fabric':i.loader)};}
+async function search(){
+ const i=cur();if(!i)return;S.q=$('#q')?.value??S.q;const filter=catalogFilter(),type=S.type,token=++S.catalogRequest,instance=i.id;
+ S.catalogLoading=true;S.catalogError='';S.hits=[];render();
+ try{const [hits,files]=await Promise.all([api.search({q:S.q,type,loader:filter.loader,ver:filter.ver}),['shader','resourcepack'].includes(type)?api.contentFiles(instance,type):Promise.resolve([])]);if(token===S.catalogRequest&&instance===S.sel)S.contentFiles=files;if(token===S.catalogRequest&&instance===S.sel&&S.tab==='content')S.hits=hits;}
+ catch(e){if(token===S.catalogRequest)S.catalogError=e.message;}
+ finally{if(token===S.catalogRequest){S.catalogLoading=false;if(S.tab==='content'){render();$('#q')?.focus();}}}
+}
+
+const on=(k,d=false)=>S.db.settings[k]??d,sw=(k,d=false)=>`<div class="sw ${on(k,d)?'on':''}" data-set="${k}" data-def="${d?1:0}"></div>`;
+async function launchGame(e,server,skipCheck=false){
+ const i=cur();if(!i){toast('Сначала создайте инстанс');return;}if(S.playing||S.preflightBusy||S.toolBusy||S.importing||S.installing||S.deleting)return;
+ if(!skipCheck&&S.db.settings.checkBeforeLaunch!==false){
+   S.preflightBusy=true;
+   try{const report=await api.compatibility(i.id,false);S.compatibility[i.id]=report;
+     if(report.errors){S.pendingLaunch={instance:i.id,server,x:e.clientX||0,y:e.clientY||0};$('#compatDetails').innerHTML=compatibilityPanel(report);$('#compatDlg').showModal();return;}
+   }catch(er){toast('Не удалось проверить моды: '+er.message);return;}finally{S.preflightBusy=false;}
+   if(cur()?.id!==i.id)return;
+ }
+ boom(e.clientX,e.clientY);S.playing=true;S.gameRunning=false;S.prog=0;S.log='Подготовка…';S.logs=[];S.crash=null;S.tab='play';render();api.launch(i,server).then(ok=>{if(!ok&&S.playing){S.playing=false;render();}}).catch(er=>{toast(er.message);S.playing=false;S.crash=S.crash||{...novaAnalyzeCrash(er.message,-1),instanceId:i.id};render()});
+}
+function pingAll(){S.db.servers.forEach(x=>api.ping(x.host).then(r=>{S.st[x.host]=r;if(S.tab==='servers')render()}))}
+const duration=seconds=>seconds>=3600?(seconds/3600).toFixed(1)+' ч':Math.floor(seconds/60)+' мин';
+async function showWorlds(){const id=S.sel;S.worldBackups=await api.worldBackups(id);if(S.sel!==id)return;$('#worldList').innerHTML=S.worldBackups.map(r=>`<div class="row"><div>${new Date(r.at).toLocaleString()}<p>${esc(r.reason)} · миров: ${r.worlds.length}</p></div><button class="b" data-world-restore="${esc(r.id)}">Восстановить</button></div>`).join('')||'<p class="tool-status">Копий пока нет</p>';if(!$('#worldsDlg').open)$('#worldsDlg').showModal();}
+api.on('launcher:update',state=>{S.launcherUpdate=state;if(state.phase==='available')toast(state.message+' · откройте настройки');if(S.tab==='settings')render();});
+api.on('horizon:log',line=>{S.horizonLog=(S.horizonLog+line).slice(-60000);const pre=$('#horizonLog');if(pre){pre.textContent=S.horizonLog;pre.scrollTop=pre.scrollHeight;}});
+const jv=novaJavaMajor;
+function mount3d(){const c=$('#skin3d');if(!c)return;const n=encodeURIComponent(S.db.settings.name);
+  c.parentElement.classList.toggle('stage',S.db.settings.characterStage!==false);
+  const flat=()=>{c.parentElement.innerHTML=`<img src="https://mc-heads.net/body/${n}/240" style="height:340px" alt="">`};
+  if(typeof skinview3d==='undefined'){flat();return}
+  try{const v=new skinview3d.SkinViewer({canvas:c,width:300,height:380});
+    v.fov=38;v.zoom=({small:.60,normal:.68,large:.74}[S.db.settings.characterSize]||.68);v.autoRotate=false;v.playerWrapper.rotation.y=0;
+    S.character=new NovaCharacter(v,c,c.closest('.hr').querySelector('.hint'),S.playing&&!S.gameRunning,S.db.settings,S.characterMemory);
+    if(v.controls){v.controls.enableZoom=false;v.controls.enablePan=false}
+    v.loadSkin(`https://mc-heads.net/skin/${n}`).catch(()=>v.loadSkin(`https://mineskin.eu/skin/${n}`).catch(()=>{}));S.v3=v}catch{flat()}}
+function boom(x,y){const c=['#ff375f','#ff9f0a','#30d158','#0a84ff','#bf5af2','#ffd60a'];for(let k=0;k<28;k++){const p=document.createElement('i');p.style.cssText=`position:fixed;left:${x}px;top:${y}px;width:8px;height:8px;border-radius:2px;background:${c[k%6]};z-index:30;pointer-events:none`;document.body.append(p);const a=Math.random()*6.28,r=80+Math.random()*150;p.animate([{transform:'translate(0,0) rotate(0)',opacity:1},{transform:`translate(${Math.cos(a)*r}px,${Math.sin(a)*r+70}px) rotate(${Math.random()*540}deg)`,opacity:0}],{duration:900+Math.random()*500,easing:'cubic-bezier(.2,.8,.3,1)'}).onfinish=()=>p.remove()}}
+function onb(){const o=$('#onb');o.className='onb';
+ o.innerHTML=`<div class="card2"><div class="big" style="background:linear-gradient(145deg,#0a84ff,#bf5af2);--c:#bf5af2;margin:0 auto 22px"><img src="assets/nova-mark.svg" alt="Nova"></div><h1>Добро пожаловать в Nova</h1><p style="color:var(--mut);margin:0 0 26px;font-size:14px">Войдите, чтобы играть на лицензии, или начните офлайн</p>
+ <button class="play" id="o1" style="margin:0 0 14px;padding:14px 44px;font-size:16px">Войти через Microsoft</button><div class="or">ИЛИ ОФЛАЙН</div>
+ <div style="display:flex;gap:8px;justify-content:center"><input id="o2" placeholder="Ник" value="${esc(S.db.settings.name==='Steve'?'':S.db.settings.name)}" style="width:180px;text-align:center"><button class="b" id="o3">Продолжить</button></div></div>`;
+ const done=()=>{S.db.settings.onboarded=true;persist();o.classList.add('out');setTimeout(()=>{o.className='';o.innerHTML=''},600);render()};
+ $('#o1').onclick=async e=>{$('#o1').textContent='Ждём окно входа…';try{S.acc=await api.login();S.db.settings.name=S.acc;S.db.settings.ms=true;boom(e.clientX,e.clientY);done()}catch(er){$('#o1').textContent='Войти через Microsoft';toast('Не удалось войти: '+er.message)}};
+ $('#o3').onclick=e=>{S.db.settings.name=$('#o2').value.trim()||'Steve';boom(e.clientX,e.clientY);done()};
+ $('#o2').onkeydown=e=>{if(e.key==='Enter')$('#o3').click()}}
+document.addEventListener('click',async e=>{
+  const t=e.target.closest('[data-sel],[data-tab],[data-act],[data-ins],[data-tg],[data-set],[data-join],[data-svdel],[data-fav],[data-theme-choice],[data-restore],[data-remove-mod],[data-restore-removed],[data-content-action],[data-world-restore],[data-horizon],[data-replay]');if(!t)return;const d=t.dataset,i=cur();
+  try{
+  if(d.act==='horizondownload'){await api.horizonDownload();return;}
+  if(d.act==='horizonchoose'){const r=await api.horizonChoose();if(r){acceptDb(r.db);S.horizonPath=r.path;}render();return;}
+  if(d.horizon){if(instanceDeleteBlocked()||S.horizonBusy)return;S.horizonBusy=true;S.toolBusy=true;S.horizonLog='';render();try{await api.horizonRun(d.horizon);toast('Команда Horizon завершена');}finally{S.horizonBusy=false;S.toolBusy=false;S.history=await api.history();render();}return;}
+  if(d.replay){if(instanceDeleteBlocked())return;S.sel=d.replay;await loadMods();launchGame(e);return;}
+  if(d.act==='launchercheck'){await persist();S.launcherUpdate=await api.launcherCheck();render();return;}
+  if(d.act==='launcherdownload'){if(instanceDeleteBlocked())return;S.toolBusy=true;try{S.launcherUpdate=await api.launcherDownload();}finally{S.toolBusy=false;render();}return;}
+  if(d.act==='launcherinstall'){if(instanceDeleteBlocked())return;await api.launcherInstall();return;}
+  if(d.act==='duplicate'){if(instanceDeleteBlocked())return;S.toolBusy=true;render();try{await persist();const r=await api.duplicateInstance(i.id);acceptDb(r.db);S.sel=r.instance.id;await loadMods();toast('Копия сборки создана');}finally{S.toolBusy=false;render();}return;}
+  if(d.act==='worlds'){await showWorlds();return;}
+  if(d.act==='closeworlds'){closeDialog($('#worldsDlg'));return;}
+  if(d.act==='backupworlds'||d.worldRestore){if(instanceDeleteBlocked())return;if(d.worldRestore&&!confirm('Восстановить все миры из выбранной копии? Текущие миры будут сохранены отдельно.'))return;S.toolBusy=true;t.disabled=true;try{if(d.worldRestore){await api.restoreWorlds(i.id,d.worldRestore);toast('Миры восстановлены');}else{const r=await api.backupWorlds(i.id);toast(r?'Копия миров создана':'В этой сборке пока нет миров');}await showWorlds();}finally{S.toolBusy=false;t.disabled=false;}return;}
+  if(d.contentAction){if(instanceDeleteBlocked())return;if(d.contentAction==='remove'&&!confirm('Удалить '+d.contentName+'? Копия файла останется в backups/content.'))return;S.toolBusy=true;render();try{const r=await api.manageContent(i.id,S.type,d.contentName,d.contentAction);await loadContentFiles();await loadMods();toast(d.contentAction==='update'?(r.changed?'Контент обновлён':'Уже установлена актуальная версия'):'Готово. Изменения применятся при следующем запуске игры');}finally{S.toolBusy=false;render();}return;}
+  if(d.act==='discordstatus'){const status=await api.discordStatus();S.discordStatus=({connected:'Discord подключён',connecting:'Подключение к Discord…',waiting:'Откройте приложение Discord',disabled:'Активность выключена','missing-id':'Укажите корректный Application ID',error:'Discord отклонил запрос. Проверьте Application ID'})[status]||status;render();return;}
+  if(d.act==='managemods'){S.tab='mods';await loadMods();render();return;}
+  if(d.act==='removedmods'){await showRemoved();return;}
+  if(d.act==='closeremoved'){closeDialog($('#removedDlg'));return;}
+  if(d.removeMod){if(S.playing||S.toolBusy)return;if(!confirm('Убрать '+d.removeMod+' из сборки? Его можно будет вернуть в разделе «Удалённые».'))return;S.toolBusy=true;try{await api.removeMod(i.id,d.removeMod);delete S.updatePlans[i.id];delete S.compatibility[i.id];await loadMods();toast('Мод перемещён в «Удалённые»');}finally{S.toolBusy=false;render();}return;}
+  if(d.restoreRemoved){if(S.playing||S.toolBusy)return;S.toolBusy=true;try{await api.restoreRemoved(i.id,d.restoreRemoved);await loadMods();delete S.compatibility[i.id];delete S.updatePlans[i.id];render();await showRemoved();toast('Мод восстановлен');}finally{S.toolBusy=false;}return;}
+  if(d.act==='catalogversion'){const filter=catalogFilter(),versions=[...new Set([filter.ver,...S.versions])];$('#catalogVersion').innerHTML=versions.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');$('#catalogVersion').value=filter.ver;$('#catalogLoader').value=filter.loader;$('#catalogLoader').hidden=S.type!=='mod';$('#catalogLoaderLabel').hidden=S.type!=='mod';$('#catalogDlg').showModal();return;}
+  if(d.act==='catalogcancel'){closeDialog($('#catalogDlg'));return;}
+  if(d.act==='catalogapply'){S.catalogVersion=$('#catalogVersion').value;S.catalogLoader=$('#catalogLoader').value;$('#catalogDlg').close();await search();return;}
+  if(d.act==='catalogreset'){S.catalogVersion=null;S.catalogLoader=null;await search();return;}
+  if(d.act==='catalogcreate'){const filter=catalogFilter();$('#n').value='Сборка '+filter.ver;if(![...$('#v').options].some(o=>o.value===filter.ver))$('#v').add(new Option(filter.ver,filter.ver));$('#v').value=filter.ver;$('#l').value=filter.loader;$('#dlg').showModal();return;}
+  if(d.act==='closerollback'){closeDialog($('#rollbackDlg'));return;}
+  if(d.act==='cancelpreflight'){closeDialog($('#compatDlg'));S.pendingLaunch=null;return;}
+  if(d.act==='forceplay'){const pending=S.pendingLaunch;S.pendingLaunch=null;$('#compatDlg').close();if(pending&&pending.instance===S.sel)launchGame({clientX:pending.x,clientY:pending.y},pending.server,true);return;}
+  if(d.act==='rollback'){await showBackups();return;}
+  if(d.restore){
+    if(S.toolBusy||S.playing)return;
+    if(!confirm('Восстановить старые версии модов из этой копии? Текущие файлы будут сохранены отдельно.'))return;
+    S.toolBusy=true;t.disabled=true;
+    try{const result=await api.rollback(S.sel,d.restore);delete S.compatibility[S.sel];delete S.updatePlans[S.sel];await loadMods();render();toast('Восстановлено модов: '+result.count);await showBackups();}catch(er){toast(er.message);t.disabled=false;}finally{S.toolBusy=false;}return;
+  }
+  if(d.act==='compatibility'||d.act==='exportpack'){
+    if(!i||S.toolBusy||S.playing)return;const id=i.id;S.toolBusy=true;render();
+    try{if(d.act==='compatibility')S.compatibility[id]=await api.compatibility(id,true);else{const result=await api.exportPack(id);if(result)toast('Сборка сохранена · файлов: '+result.count+(result.omitted.length?' · пропущено: '+result.omitted.length:''));}}
+    catch(er){toast(er.message);}finally{S.toolBusy=false;render();}return;
+  }
+  if(d.themeChoice){await changeTheme(d.themeChoice,t);return;}
+  if(d.act==='importpack'){if(S.installing)return;await importLocalPack();return;}
+  if(d.act==='contentfolder'){await api.openContentDir(i.id,S.type);return;}
+  if(d.fav!==undefined){const server=S.db.servers[+d.fav];if(server){server.favorite=!server.favorite;await persist();}render();return;}
+  if(d.act==='favorites'){S.onlyFavorites=!S.onlyFavorites;render();return;}
+  if(d.act==='refreshsrv'){S.st={};render();pingAll();return;}
+  if(d.act==='dismisscrash'){S.crash=null;render();return;}
+  if(d.act==='analyze'){if(!S.logs.length){toast('Лог пока пуст');return;}S.crash={...novaAnalyzeCrash(S.logs.join('\n'),null),instanceId:S.sel};render();return;}
+  if(d.act==='lastcrash'){S.crash=await api.lastCrash(S.sel);if(!S.crash)toast('Сохранённых вылетов нет');render();return;}
+  if(d.act==='checkupdates'||d.act==='applyupdates'){
+    if(!i||S.updateBusy||S.playing)return;
+    const id=i.id,names=d.act==='applyupdates'?[...document.querySelectorAll('[data-update]:checked')].map(x=>x.dataset.update):[];
+    if(d.act==='applyupdates'&&!names.length){toast('Выберите моды');return;}
+    S.updateBusy=true;render();
+    try{if(d.act==='applyupdates'){const result=await api.updateMods(id,names);toast('Обновлено модов: '+result.count);delete S.compatibility[id];await loadMods();}S.updatePlans[id]=await api.checkUpdates(id);}
+    catch(er){toast(er.message);}finally{S.updateBusy=false;render();}return;
+  }
+  if(d.sel){S.sel=d.sel;if(S.tab==='settings')S.tab='play';S.crash=null;S.hits=[];S.contentFiles=[];S.catalogVersion=null;S.catalogLoader=null;S.catalogRequest++;await loadMods();if(S.tab==='content'){await search();return;}}
+  else if(d.tab){S.tab=d.tab;if(d.tab==='history')S.history=await api.history();if(d.tab==='horizon')S.horizonPath=(await api.horizonStatus()).path;await loadMods();if(d.tab==='servers')pingAll();if(d.tab==='content'&&i){render();await search();return}}
+  else if(d.tg){await api.toggle(i.id,d.tg);delete S.updatePlans[i.id];delete S.compatibility[i.id];await loadMods()}
+  else if(d.ins){
+    if(S.installing||S.playing||S.importing||S.deleting)return;
+    const filter=catalogFilter(),type=S.type,id=i.id,key=catalogKey(id,type,d.ins);
+    if(type!=='modpack'&&(filter.ver!==i.version||(type==='mod'&&filter.loader!==i.loader))){toast('Создайте инстанс под выбранную версию');return;}
+    S.installing=true;S.installs[key]={state:'busy'};render();
+    try{
+      if(type==='modpack'){const created=await importLocalPack(()=>api.pack({project:d.ins,version:filter.ver}));if(!created&&S.importError)throw Error(S.importError);S.installs[key]={state:created?'done':'idle'};}
+      else{const file=await api.install({project:d.ins,inst:i,type});S.installs[key]={state:'done',file};delete S.compatibility[id];await loadMods();await loadContentFiles();toast('Установлено: '+file);}
+    }catch(er){S.installs[key]={state:'error',message:er.message};toast(er.message);}finally{S.installing=false;render();}return;
+  }
+  else if(d.act==='new'){$('#dlg').showModal();return}
+  else if(d.act==='go'){await search();return}
+  else if(d.act==='dir')api.openDir(i.id);
+  else if(d.act==='snow'){S.db.settings.snow=!S.db.settings.snow;persist();snow()}
+  else if(d.act==='login'){S.acc=await api.login();toast('Вход выполнен: '+S.acc);S.db.settings.name=S.acc;S.db.settings.ms=true;persist()}
+  else if(d.act==='logout'){await api.logout();S.acc='';S.db.settings.ms=false;toast('Вы вышли из аккаунта')}
+  else if(d.act==='del'){
+    if(!i||instanceDeleteBlocked())return;
+    const id=i.id;S.deleting=true;render();
+    try{
+      const result=await api.deleteInstance(id);
+      if(result){acceptDb(result.db);if(S.sel===id||!cur()){S.sel=S.db.instances[0]?.id;S.tab='play';}S.catalogRequest++;S.catalogLoading=false;S.catalogError='';S.catalogVersion=null;S.catalogLoader=null;S.hits=[];S.contentFiles=[];delete S.updatePlans[id];delete S.compatibility[id];for(const key of Object.keys(S.installs))if(key.startsWith(id+'|'))delete S.installs[key];if(S.crash?.instanceId===id)S.crash=null;await loadMods();toast(result.retained?'Инстанс удалён, файлы сохранены в резервной папке':'Инстанс «'+result.name+'» удалён');}
+    }catch(er){toast(er.message);}finally{S.deleting=false;render();}return;
+  }
+  else if(d.act==='play'){launchGame(e);return}
+  else if(d.join){launchGame(e,d.join);return}
+  else if(d.svdel!==undefined){S.db.servers.splice(+d.svdel,1);persist()}
+  else if(d.act==='addsrv'){$('#dlg2').showModal();return}
+  else if(d.act==='clearlog'){S.logs=[]}
+  else if(d.act==='copylog'){navigator.clipboard.writeText(S.logs.join('\n'));toast('Скопировано')}
+  else if(d.act==='resetonb'){S.db.settings.onboarded=false;persist();toast('Приветствие появится при следующем запуске')}
+  else if(d.set){S.db.settings[d.set]=!on(d.set,d.def==='1');persist();snow();t.classList.toggle('on');return}
+  }catch(er){toast(er.message)}
+  render();
+});
+document.addEventListener('input',e=>{const s=S.db.settings;if(e.target.id==='modQuery'){S.modQuery=e.target.value;$('#instanceModList').innerHTML=modRows();return;}
+  if(e.target.id==='discordAppId'){s.discordAppId=e.target.value.trim();persist();}
+  if(e.target.id==='nick'){s.name=e.target.value||'Steve';persist()}
+  if(e.target.id==='ram'){s.ram=+e.target.value;$('#ramv').textContent=s.ram+' ГБ';persist()}
+  if(e.target.id==='updateFeed'){s.updateFeed=e.target.value.trim();persist();}
+  if(e.target.id==='java'){s.java=e.target.value;persist()}
+  if(e.target.id==='jvm'){s.jvm=e.target.value;persist()}
+  if(e.target.id==='ww'){s.ww=+e.target.value||0;persist()}
+  if(e.target.id==='wh'){s.wh=+e.target.value||0;persist()}});
+document.addEventListener('change',e=>{if(e.target.id==='modFilter'){S.modFilter=e.target.value;$('#instanceModList').innerHTML=modRows();return;}if(['characterSize','characterFrequency'].includes(e.target.id)){S.db.settings[e.target.id]=e.target.value;persist();return;}if(e.target.id==='ty'){S.type=e.target.value;S.q='';S.hits=[];S.contentFiles=[];render();search()}});
+document.addEventListener('keydown',e=>{if(e.target.id==='q'&&e.key==='Enter')search()});
+$('#x').onclick=()=>closeDialog($('#dlg'));
+$('#x2').onclick=()=>closeDialog($('#dlg2'));
+$('#ok2').onclick=()=>{const h=$('#sh').value.trim();if(!h)return;if(S.db.servers.some(x=>x.host.toLowerCase()===h.toLowerCase())){toast('Сервер уже добавлен');return;}S.db.servers.push({name:$('#sn').value.trim()||h,host:h,favorite:true});persist();$('#dlg2').close();pingAll();render()};
+$('#ok').onclick=()=>{const n=$('#n').value.trim();if(!n)return;const x={id:Date.now().toString(36),name:n,version:$('#v').value,loader:$('#l').value};
+  S.db.instances.push(x);S.sel=x.id;S.tab='play';S.mods=[];S.catalogVersion=null;S.catalogLoader=null;S.hits=[];persist();$('#dlg').close();$('#n').value='';render()};
+api.on('game:progress',(t,p)=>{if(Number.isFinite(p))S.prog=Math.max(0,Math.min(1,p));if(S.tab==='play'&&$('.bar i'))$('.bar i').style.width=Math.max(4,S.prog*100)+'%'});
+api.on('game:log',m=>{S.log=String(m).slice(0,160);S.logs.push(String(m).trim());if(S.logs.length>600)S.logs.shift();const l=$('.log');if(l)l.textContent=S.log;const c=$('#con');if(c){c.textContent=S.logs.join('\n');c.scrollTop=c.scrollHeight}});
+api.on('game:started',()=>{S.gameRunning=true;if(S.tab==='play')render();});
+api.on('game:closed',(code,report)=>{S.playing=false;S.gameRunning=false;if(report){S.crash=report;S.tab='console';}render()});
+(async()=>{
+  acceptDb(await api.getDb());applyTheme();S.sel=S.db.instances[0]?.id;
+  S.db.servers=S.db.servers||[];S.versions=[...new Set([...S.db.instances.map(i=>i.version),'1.21.1','1.20.1','1.0'])];$('#v').innerHTML=S.versions.map(v=>`<option>${esc(v)}</option>`).join('');snow();await loadMods();render();
+  if(!S.db.settings.onboarded)onb();else if(S.db.settings.ms)api.restore().then(n=>{if(n){S.acc=n;S.db.settings.name=n;render();}});
+  try{const result=api.versions?await api.versions():{versions:novaReleaseVersions(await (await fetch('https://piston-meta.mojang.com/mc/game/version_manifest_v2.json')).json())};S.versions=result.versions;const selected=$('#v').value;$('#v').innerHTML=S.versions.map(v=>`<option>${esc(v)}</option>`).join('');if(S.versions.includes(selected))$('#v').value=selected;}catch(er){toast('Каталог версий недоступен: '+er.message);}
+  pingAll();
+})();
+</script></body></html>

@@ -1,0 +1,20 @@
+const net=require('net'),path=require('path'),os=require('os'),crypto=require('crypto');
+function endpoints(platform=process.platform,env=process.env){if(platform==='win32')return Array.from({length:10},(_,i)=>`\\\\.\\pipe\\discord-ipc-${i}`);const dirs=[env.XDG_RUNTIME_DIR,env.TMPDIR,env.TMP,env.TEMP,os.tmpdir(),'/tmp'].filter(Boolean);return [...new Set(dirs)].flatMap(d=>Array.from({length:10},(_,i)=>path.join(d,'discord-ipc-'+i)));}
+function packet(op,value){const body=Buffer.from(JSON.stringify(value)),head=Buffer.alloc(8);head.writeUInt32LE(op);head.writeUInt32LE(body.length,4);return Buffer.concat([head,body]);}
+function activity({phase='launcher',instance,started}={}){return {details:phase==='playing'?'Играет в Minecraft':phase==='launching'?'Запускает Minecraft':'Выбирает сборку',state:instance?`${instance.name} · ${instance.loader} ${instance.version}`.slice(0,120):'Nova Launcher',...(phase==='playing'&&started?{timestamps:{start:started}}:{}),instance:false};}
+class Presence{
+ constructor({paths=endpoints(),connect=p=>net.createConnection(p),pid=process.pid,retryMs=15000}={}){this.paths=paths;this.connect=connect;this.pid=pid;this.retryMs=retryMs;this.state='disabled';this.clientId='';this.socket=null;this.ready=false;this.data=Buffer.alloc(0);this.desired=null;this.timer=null;this.generation=0;this.lastSent='';this.lastAt=0;this.publishTimer=null;}
+ configure(enabled,id){id=String(id||'').trim();if(!enabled||!/^\d{17,22}$/.test(id)){this.stop();this.state=enabled?'missing-id':'disabled';return;}if(this.clientId===id&&this.socket)return;this.stop();this.clientId=id;this.state='connecting';this.attempt(0,this.generation);}
+ attempt(index,g){if(g!==this.generation||!this.clientId)return;if(index>=this.paths.length){this.state='waiting';this.timer=setTimeout(()=>this.attempt(0,g),this.retryMs);this.timer.unref?.();return;}
+  const socket=this.connect(this.paths[index]);this.socket=socket;let ended=false,buffer=Buffer.alloc(0);const timeout=setTimeout(()=>socket.destroy(),3000);timeout.unref?.();
+  const next=()=>{clearTimeout(timeout);if(ended||g!==this.generation)return;ended=true;socket.destroy();this.ready=false;this.socket=null;this.attempt(index+1,g);};
+  socket.once('error',next);socket.once('close',next);
+  socket.once('connect',()=>socket.write(packet(0,{v:1,client_id:this.clientId})));
+  socket.on('data',chunk=>{if(ended||g!==this.generation)return;buffer=Buffer.concat([buffer,chunk]);while(buffer.length>=8){const op=buffer.readUInt32LE(0),len=buffer.readUInt32LE(4);if(len>1024*1024){socket.destroy();return;}if(buffer.length<8+len)return;let msg;try{msg=JSON.parse(buffer.subarray(8,8+len).toString());}catch{socket.destroy();return;}buffer=buffer.subarray(8+len);if(op===3){socket.write(packet(4,msg));continue;}if(op===2){socket.destroy();return;}if(msg.evt==='READY'){clearTimeout(timeout);this.ready=true;this.lastSent='';this.lastAt=0;this.state='connected';this.publish();}else if(msg.evt==='ERROR'){this.state='error';}}});
+ }
+ update(value){this.desired=activity(value);this.publish();}
+ publish(){if(!this.ready||!this.socket||this.socket.destroyed)return;const signature=JSON.stringify(this.desired);if(signature===this.lastSent)return;const wait=5000-(Date.now()-this.lastAt);if(wait>0){if(!this.publishTimer){this.publishTimer=setTimeout(()=>{this.publishTimer=null;this.publish();},wait);this.publishTimer.unref?.();}return;}this.lastSent=signature;this.lastAt=Date.now();this.socket.write(packet(1,{cmd:'SET_ACTIVITY',args:{pid:this.pid,activity:this.desired},nonce:crypto.randomUUID()}));}
+
+ stop(){this.generation++;clearTimeout(this.publishTimer);this.publishTimer=null;this.lastSent='';this.lastAt=0;clearTimeout(this.timer);this.timer=null;if(this.ready&&this.socket&&!this.socket.destroyed)this.socket.end(packet(1,{cmd:'SET_ACTIVITY',args:{pid:this.pid,activity:null},nonce:crypto.randomUUID()}));else this.socket?.destroy();this.ready=false;this.socket=null;this.clientId='';this.state='disabled';}
+}
+module.exports={Presence,activity,endpoints,packet};
