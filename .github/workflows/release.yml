@@ -8,7 +8,7 @@ concurrency:
   group: nova-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 permissions:
-  contents: write
+  contents: read
 jobs:
   build:
     strategy:
@@ -38,19 +38,17 @@ jobs:
         run: node -e "if (process.env.GITHUB_REF_NAME !== 'v' + require('./package.json').version) throw Error('Tag must match package.json version')"
       - run: npm ci
       - run: npm test
-      - name: Build and publish tagged releases
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: node .github/scripts/build.cjs ${{ matrix.args }} --publish always
+      - name: Build installers
+        run: node .github/scripts/build.cjs ${{ matrix.args }} --publish never
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-      - name: Build without publishing
-        if: "!startsWith(github.ref, 'refs/tags/v')"
-        run: npx electron-builder ${{ matrix.args }} --publish never
+      - name: Verify macOS signatures and packaged startup
+        if: runner.os == 'macOS'
+        run: npm run test:packaged:mac
       - uses: actions/upload-artifact@v4
         with:
           name: Nova-${{ matrix.label }}-${{ github.run_number }}
@@ -63,3 +61,35 @@ jobs:
             dist/*.AppImage
             dist/*.yml
             dist/*.blockmap
+  release:
+    name: Publish verified release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v5
+        with:
+          pattern: Nova-*
+          merge-multiple: true
+          path: release-files
+      - name: Publish installers after every platform passes
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          shopt -s nullglob
+          files=(release-files/*.dmg release-files/*.zip release-files/*.exe release-files/*.AppImage release-files/*.blockmap release-files/latest*.yml)
+          test "${#files[@]}" -gt 0
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft > /tmp/nova-release-state.json 2>/dev/null; then
+            node -e "if (!require('/tmp/nova-release-state.json').isDraft) throw Error('A published release already exists; use a new version')"
+          else
+            gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --draft --title "Nova ${RELEASE_TAG#v}" --notes-file RELEASE_NOTES.md
+          fi
+          gh release upload "$RELEASE_TAG" "${files[@]}" --repo "$GITHUB_REPOSITORY" --clobber
+          gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest

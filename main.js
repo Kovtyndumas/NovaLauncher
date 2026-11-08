@@ -20,6 +20,17 @@ const {splitJvmArgs,quickPlay,neoPrefix,compareVersions}=require('./launch-optio
 const load=()=>stateStore.create(dbFile()).load();
 const save=d=>stateStore.create(dbFile()).save(d);
 let win, msToken = null, activeGame = false, modBusy = false;
+let smokeRoot;
+if(process.env.NOVA_SMOKE_TEST==='1'){
+ smokeRoot=fs.mkdtempSync(path.join(require('os').tmpdir(),'nova-packaged-smoke-'));app.setPath('userData',smokeRoot);
+ fs.writeFileSync(path.join(smokeRoot,'db.json'),JSON.stringify({instances:[{id:'smoke',name:'Packaged startup test',version:'26.3',loader:'Vanilla'}],servers:[],settings:{name:'Test',ram:4,onboarded:true,discordPresence:false,autoUpdate:false}}));
+}
+async function packagedSmoke(){
+ if(!smokeRoot)return;
+ try{for(let n=0;n<150;n++){const state=await win.webContents.executeJavaScript("typeof S!=='undefined'&&!!S.db&&!!document.querySelector('[data-act=play]')").catch(()=>false);if(state){console.log('NOVA_PACKAGED_SMOKE_OK '+JSON.stringify({version:app.getVersion(),arch:process.arch}));fs.rmSync(smokeRoot,{recursive:true,force:true});app.exit(0);return;}await new Promise(r=>setTimeout(r,100));}throw Error('Packaged renderer did not become ready');}
+ catch(e){console.error(e);fs.rmSync(smokeRoot,{recursive:true,force:true});app.exit(1);}
+}
+
 const analyzeCrash = require('./crash-analysis');
 const {patchLaunchCache}=require('./launch-cache');
 const modFiles=require('./mod-files');
@@ -35,12 +46,13 @@ const instanceById = id => {const inst=load().instances.find(x=>x.id===id);if(!i
 
 app.whenReady().then(() => {
   win = new BrowserWindow({
-    width: 1100, height: 700, minWidth: 900, minHeight: 600,
+    show:!smokeRoot,width: 1100, height: 700, minWidth: 900, minHeight: 600,
     icon:path.join(__dirname,'assets','nova-icon.png'),
     titleBarStyle: 'hidden', trafficLightPosition: { x: 18, y: 16 },
     titleBarOverlay: { color: '#00000000', symbolColor: '#8e8e93', height: 44 },
     vibrancy: 'sidebar', webPreferences: { preload: path.join(__dirname, 'preload.js') },
   });
+  win.webContents.once?.('did-finish-load',packagedSmoke);
   win.loadFile(path.join(__dirname,'index.html'));
   refreshPresence();
   if(app.isPackaged){setTimeout(()=>{if(load().settings.autoUpdate!==false)launcherUpdates.check();},7000).unref();setInterval(()=>{if(load().settings.autoUpdate!==false)launcherUpdates.check();},4*60*60*1000).unref();}
