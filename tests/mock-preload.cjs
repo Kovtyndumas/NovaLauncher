@@ -1,5 +1,6 @@
 const {contextBridge}=require('electron');
 const db={instances:[{id:'test',name:'Nova Survival',version:'1.20.1',loader:'Fabric'}],settings:{name:'Steve',ram:4,snow:false,onboarded:true},servers:[{name:'Мой сервер',host:'localhost',favorite:true},{name:'Другой сервер',host:'example.org',favorite:false}]};
+if(process.argv.includes('--nova-first-start')){db.settings.onboarded=false;db.settings.introSeen=false;}
 let mods=['sodium-0.5.jar','local.jar.disabled'],removed=[];let rolledBack=false,launches=0,exportCount=0,lastSearch=null,lastPack=null,failInstall=false,openedContent=0,cancelDelete=false;
 const content={shader:[],resourcepack:[]};
 const importPack=async()=>{const inst={id:'imported-'+db.instances.length,name:'Imported Pack',version:'1.20.1',loader:'Fabric',loaderVersion:'0.15.11'};db.instances.push(inst);return inst;};

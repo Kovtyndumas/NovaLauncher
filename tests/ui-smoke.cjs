@@ -8,6 +8,7 @@ app.whenReady().then(async()=>{
  try{
   await w.loadFile(path.join(__dirname,'..','index.html'));
   for(let i=0;i<80;i++){if(await w.webContents.executeJavaScript("!!document.querySelector('[data-act=play]')"))break;await pause(250);}
+  for(let n=0;n<80;n++){if(await w.webContents.executeJavaScript('!NovaStartup.active&&!document.documentElement.classList.contains("startup-lock")'))break;await pause(50);}
   await w.webContents.executeJavaScript('document.fonts.ready.then(()=>true)');
   assert(await w.webContents.executeJavaScript("document.fonts.check('12px Monocraft')"));
   async function snap(name){console.log('Screen:',name);await pause(600);fs.writeFileSync(path.join(output,name+'.png'),(await w.webContents.capturePage()).toPNG());}

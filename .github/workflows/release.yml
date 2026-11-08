@@ -48,7 +48,9 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
       - name: Verify macOS signatures and packaged startup
         if: runner.os == 'macOS'
-        run: npm run test:packaged:mac
+        run: |
+          npm run test:startup
+          npm run test:packaged:mac
       - uses: actions/upload-artifact@v4
         with:
           name: Nova-${{ matrix.label }}-${{ github.run_number }}

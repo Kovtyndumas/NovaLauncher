@@ -27,7 +27,7 @@ if(process.env.NOVA_SMOKE_TEST==='1'){
 }
 async function packagedSmoke(){
  if(!smokeRoot)return;
- try{for(let n=0;n<150;n++){const state=await win.webContents.executeJavaScript("typeof S!=='undefined'&&!!S.db&&!!document.querySelector('[data-act=play]')").catch(()=>false);if(state){console.log('NOVA_PACKAGED_SMOKE_OK '+JSON.stringify({version:app.getVersion(),arch:process.arch}));fs.rmSync(smokeRoot,{recursive:true,force:true});app.exit(0);return;}await new Promise(r=>setTimeout(r,100));}throw Error('Packaged renderer did not become ready');}
+ try{for(let n=0;n<150;n++){const state=await win.webContents.executeJavaScript("typeof S!=='undefined'&&!!S.db&&!!document.querySelector('[data-act=play]')&&!document.documentElement.classList.contains('startup-lock')&&(!window.NovaStartup||!NovaStartup.active)").catch(()=>false);if(state){console.log('NOVA_PACKAGED_SMOKE_OK '+JSON.stringify({version:app.getVersion(),arch:process.arch}));fs.rmSync(smokeRoot,{recursive:true,force:true});app.exit(0);return;}await new Promise(r=>setTimeout(r,100));}throw Error('Packaged renderer did not become ready');}
  catch(e){console.error(e);fs.rmSync(smokeRoot,{recursive:true,force:true});app.exit(1);}
 }
 
@@ -46,12 +46,13 @@ const instanceById = id => {const inst=load().instances.find(x=>x.id===id);if(!i
 
 app.whenReady().then(() => {
   win = new BrowserWindow({
-    show:!smokeRoot,width: 1100, height: 700, minWidth: 900, minHeight: 600,
+    show:false,backgroundColor:'#08090b',width: 1100, height: 700, minWidth: 900, minHeight: 600,
     icon:path.join(__dirname,'assets','nova-icon.png'),
     titleBarStyle: 'hidden', trafficLightPosition: { x: 18, y: 16 },
     titleBarOverlay: { color: '#00000000', symbolColor: '#8e8e93', height: 44 },
     vibrancy: 'sidebar', webPreferences: { preload: path.join(__dirname, 'preload.js') },
   });
+  win.once?.('ready-to-show',()=>{if(!smokeRoot)win.show();});
   win.webContents.once?.('did-finish-load',packagedSmoke);
   win.loadFile(path.join(__dirname,'index.html'));
   refreshPresence();
