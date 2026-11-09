@@ -79,9 +79,17 @@ pub fn ensure(
     target_arch: &str,
     log: &dyn Fn(String),
 ) -> Result<PathBuf> {
+    ensure_inner(store,net,version,target_arch,log,false)
+}
+/// Horizon's resource exporter needs the JDK tools, independently of a Java
+/// instance's custom runtime (which may legitimately be Java 8 or 17).
+pub fn ensure_jdk(store:&Store,net:&Net,version:u32,target_arch:&str,log:&dyn Fn(String))->Result<PathBuf>{
+    ensure_inner(store,net,version,target_arch,log,true)
+}
+fn ensure_inner(store:&Store,net:&Net,version:u32,target_arch:&str,log:&dyn Fn(String),jdk:bool)->Result<PathBuf>{
     let settings = store.settings();
     let custom = s(&settings, "java");
-    if !custom.is_empty() {
+    if !jdk && !custom.is_empty() {
         let exe = PathBuf::from(custom);
         if major(&exe) != version {
             bail!("Нужна Java {version}. Очистите ручной путь к Java для автоматического выбора.");
@@ -100,7 +108,7 @@ pub fn ensure(
         find(&root, 10, &mut candidates);
     }
     for p in candidates {
-        if runtime_arch(&p) == target_arch && major(&p) == version {
+        if runtime_arch(&p) == target_arch && major(&p) == version && (!jdk||has_tools(&p)) {
             return Ok(p);
         }
     }
@@ -161,10 +169,15 @@ pub fn ensure(
         if major(&exe) != version {
             bail!("Java не прошла проверку");
         }
+        if jdk&&!has_tools(&exe){bail!("Для подготовки Horizon нужны java, javac и jar из JDK {version}");}
         Ok(exe)
     })();
     let _ = fs::remove_dir_all(stage);
     result
+}
+fn has_tools(java:&Path)->bool{
+    let Some(bin)=java.parent()else{return false;};
+    [if cfg!(windows){"javac.exe"}else{"javac"},if cfg!(windows){"jar.exe"}else{"jar"}].iter().all(|name|bin.join(name).is_file())
 }
 pub fn game_arch(profile: &Value) -> &'static str {
     if os() == "osx"

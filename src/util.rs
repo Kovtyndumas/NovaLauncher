@@ -218,7 +218,9 @@ pub fn now() -> String {
 }
 pub fn report(log: &str, code: i32, id: &str) -> Value {
     let low = log.to_lowercase();
-    let (title, advice) = if low.contains("outofmemoryerror") {
+    let (title, advice) = if low.contains("требуется вход horizon") || low.contains("or sign in with the microsoft account") || low.contains("no signed-in account owns minecraft") {
+        ("Требуется вход в Horizon", "Для 26.3 RUST нажмите «Войти в Horizon» и подтвердите Microsoft-аккаунт с Minecraft Java Edition. Этот вход сохраняется для всех RUST-сборок.")
+    } else if low.contains("outofmemoryerror") {
         (
             "Недостаточно памяти",
             "Измените RAM в настройках или закройте лишние приложения.",

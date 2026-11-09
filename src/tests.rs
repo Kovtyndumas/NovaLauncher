@@ -249,9 +249,27 @@ fn pack_roundtrip_preserves_local_overrides() {
 fn horizon_always_pins_engine() {
     assert_eq!(
         horizon::command("play").unwrap(),
-        vec!["play", "--version", "v0.2.97"]
+        vec!["play", "--version", horizon::TAG, "--instance", "horizon"]
     );
     assert!(horizon::command("delete").is_err());
+}
+#[test]
+fn horizon_shares_account_store_but_keeps_game_homes_separate(){
+    let (_temp,store,first)=fixture();
+    let cached=store.root.join("horizon-instances/old/launcher");
+    fs::create_dir_all(cached.join("versions").join(horizon::TAG)).unwrap();
+    let a=horizon::process(Path::new("horizon-launcher"),&store,&first).unwrap();
+    let b=horizon::process(Path::new("horizon-launcher"),&store,&json!({"id":"second"})).unwrap();
+    let env=|cmd:&std::process::Command,key:&str|cmd.get_envs().find(|(name,_)|*name==key).unwrap().1.unwrap().to_owned();
+    assert_eq!(env(&a,"HORIZON_LAUNCHER_HOME"),cached.as_os_str());
+    assert_eq!(env(&a,"HORIZON_LAUNCHER_HOME"),env(&b,"HORIZON_LAUNCHER_HOME"));
+    assert_ne!(env(&a,"HORIZON_HOME"),env(&b,"HORIZON_HOME"));
+    assert!(horizon::process(Path::new("horizon-launcher"),&store,&json!({"id":"../escape"})).is_err());
+}
+#[test]
+fn horizon_missing_account_has_actionable_diagnosis(){
+    let result=report("Horizon: error: Or sign in with the Microsoft account that owns Minecraft",-1,"rust");
+    assert_eq!(result["title"],"Требуется вход в Horizon");
 }
 #[test]
 fn version_ranges_match_electron_behavior() {

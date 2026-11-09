@@ -50,6 +50,15 @@ async fn dispatch(
                 }
             });
         }
+        if std::env::args().any(|a|a=="--horizon-sign-in") {
+            let handle=app.clone();
+            std::thread::spawn(move||{
+                std::thread::sleep(std::time::Duration::from_millis(600));
+                if let Some(window)=handle.get_webview_window("main"){
+                    let _=window.eval("const loginTimer=setInterval(()=>{if(window.NovaReady){clearInterval(loginTimer);signInHorizon(S.db.instances.find(i=>i.loader==='Rust')?.id);}},100);");
+                }
+            });
+        }
         return Ok(Value::Null);
     }
     if method == "smokeReport" {
@@ -187,6 +196,20 @@ fn main() {
 }
 fn run() -> Result<()> {
     let root = root();
+    if std::env::args().any(|a|a=="--prepare-horizon"||a=="--check-horizon-game"){
+        let store=store::Store::new(root)?;let net=net::Net::new()?;
+        let inst=json!({"id":"nova-horizon-check","version":"26.3","loader":"Rust"});
+        let exe=horizon::ensure(&store,&net,&|line|println!("{line}"))?;
+        if !flag(&horizon::account_status(&exe,&store,&inst)?,"owner",false){anyhow::bail!("Требуется вход Horizon");}
+        if std::env::args().any(|a|a=="--check-horizon-game"){
+            horizon::run(&exe,&store,&inst,"play-check","",&|line|println!("{line}"),&||{})?;
+            println!("NOVA_HORIZON_GAME_EXIT_OK");
+        }else{
+            horizon::run(&exe,&store,&inst,"prepare","",&|line|println!("{line}"),&||{})?;
+            println!("NOVA_HORIZON_PREPARED");
+        }
+        return Ok(());
+    }
     if std::env::args().any(|a| a == "--probe-ai") {
         let temporary=std::env::temp_dir().join(format!("nova-ai-probe-{}",uuid::Uuid::new_v4()));
         let result=(||{

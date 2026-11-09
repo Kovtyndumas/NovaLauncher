@@ -22,6 +22,7 @@ pub struct Backend {
     pub presence: Arc<Presence>,
     pub update: Mutex<Value>,
     pub ai_plans: Mutex<Value>,
+    pub horizon_cancel: AtomicBool,
 }
 impl Backend {
     pub fn new(root: PathBuf, events: Events) -> Result<Arc<Self>> {
@@ -36,6 +37,7 @@ impl Backend {
             events,
             presence,
             ai_plans: Mutex::new(json!({})),
+            horizon_cancel: AtomicBool::new(false),
             update: Mutex::new(
                 json!({"phase":"idle","message":"Rust-обновления ещё не проверялись"}),
             ),
@@ -232,6 +234,19 @@ impl Backend {
             "horizonStatus" => Ok(
                 json!({"path":horizon::detect(&self.store).map(|p|p.display().to_string()).unwrap_or_default()}),
             ),
+            "horizonAccount" => self.operation(|| {
+                let inst=self.store.get(&id).unwrap_or(json!({"id":"horizon"}));
+                let exe=horizon::ensure(&self.store,&self.net,&log)?;
+                horizon::account_status(&exe,&self.store,&inst)
+            }),
+            "horizonCancelLogin" => {self.horizon_cancel.store(true,Ordering::SeqCst);Ok(Value::Null)},
+            "horizonLoginLink" => {open::that("https://www.microsoft.com/link")?;Ok(Value::Null)},
+            "horizonLogin" => self.operation(||{
+                let inst=self.store.get(&id).unwrap_or(json!({"id":"horizon"}));
+                let exe=horizon::ensure(&self.store,&self.net,&log)?;
+                self.horizon_cancel.store(false,Ordering::SeqCst);
+                horizon::sign_in(&exe,&self.store,&inst,&self.horizon_cancel,&|status|self.emit("horizon:auth",json!([status])))
+            }),
             "horizonDownload" => {
                 open::that("https://playhorizon.dev/docs/install")?;
                 Ok(Value::Null)

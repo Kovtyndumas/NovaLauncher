@@ -63,7 +63,7 @@ window.NovaMotion=class{
   }
   enter(view,direction){
     this.reset();if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
-    const nodes=[...view.querySelectorAll('.hl>.eyebrow,.hl>h1,.hl>.chips,.hl>.acts,.hl>.stats,.grp>.row,.grid>.card,.theme-choice,.backup-card')].slice(0,16);
+    const nodes=[...view.querySelectorAll('.home-info>.eyebrow,.home-info>h1,.home-info>.chips,.home-actions>.acts,.hl>.stats,.grp>.row,.grid>.card,.theme-choice,.backup-card')].slice(0,16);
     for(const [index,node]of nodes.entries())node.animate([{opacity:0,transform:`translate(${direction*8}px,14px) scale(.98)`},{opacity:1,transform:'translate(0,0) scale(1)'}],{duration:480,delay:index*38,easing:'cubic-bezier(.16,1,.3,1)',fill:'backwards'});
     for(const count of view.querySelectorAll('[data-count]')){
       const target=Number(count.dataset.count);if(!Number.isFinite(target)||target===0)continue;

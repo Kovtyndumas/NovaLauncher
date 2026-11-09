@@ -6,6 +6,7 @@
     const lines=String(text||'').split(/\r?\n/).filter(line=>line.trim()&&!/\[MCLC\]: Launching with arguments|^\s*(?:Class ?path|Command line|JVM Flags|GL debug messages|Backend library|Launched Version|Graphics card)\s*:/i.test(line));
     text=lines.join('\n');
     const rules=[
+      [/Требуется вход Horizon|Or sign in with the Microsoft account|No signed-in account owns Minecraft/i,'Требуется вход в Horizon','Для 26.3 RUST нажмите «Войти в Horizon» и подтвердите аккаунт с Minecraft Java Edition. Вход Microsoft в Nova используется отдельно.'],
       [/Unable to initialize SDL:\s*No available video device|GLFW.*(?:first thread|main thread)|Please run.*-XstartOnFirstThread/i,'Не удалось создать окно игры на Mac','На macOS проверьте параметр -XstartOnFirstThread. Он добавляется автоматически в новой версии Nova; перезапустите лаунчер после обновления.'],
       [/UnsupportedClassVersionError|class file version|requires Java|requires.*version.*Java/i,'Неподходящая версия Java','Включите автоматическую Java в настройках и очистите поле собственного пути к Java.'],
       [/OutOfMemoryError|Could not reserve enough space|Cannot allocate memory|insufficient memory/i,'Не хватает памяти','Закройте тяжёлые приложения. При Java heap space увеличьте RAM в настройках; если память не выделяется — уменьшите её.'],

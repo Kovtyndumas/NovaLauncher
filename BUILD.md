@@ -77,8 +77,8 @@ Workflow: [rust-build.yml](.github/workflows/rust-build.yml).
 # Обнови Cargo.toml, Cargo.lock, tauri.conf.json и RELEASE_NOTES.md.
 git add .
 git commit -m "Release Nova Rust"
-git tag rust-v3.0.0-beta.8
-git push origin main rust-v3.0.0-beta.8
+git tag rust-v3.0.0-beta.9
+git push origin main rust-v3.0.0-beta.9
 ```
 
 Не перезаписывай опубликованные теги. При исправлении версии создай новый номер.
@@ -90,3 +90,5 @@ git push origin main rust-v3.0.0-beta.8
 Старый проект сохранён в `legacy/electron`, включая прежние инструкции и workflow как исторические файлы. GitHub запускает только workflow в корневой `.github/workflows`. Данные Electron, Java и Rust хранятся в разных папках.
 
 Для проверки реального подбора Gemini используйте `--probe-ai` после настройки API-ключа в приложении. Проверка создаёт временный инстанс и не устанавливает моды.
+
+Диагностика Horizon: `--horizon-sign-in` открывает вход по коду; `--prepare-horizon` проверяет аккаунт и готовит 26.3 с JDK 25; `--check-horizon-game` запускает подготовленный клиент на 180 кадров и сохраняет отчёт. Требуется собственный вход в Microsoft с Minecraft Java Edition.
