@@ -6,3 +6,5 @@ html[data-look=custom] .grp,html[data-look=custom] .card,html[data-look=custom] 
 html[data-look=custom] .item.on,html[data-look=custom] .acts .play,html[data-look=custom] .b:hover,html[data-look=custom] .ai-primary,html[data-look=custom] .appearance-save{color:var(--acc-fg)!important}html[data-look=custom] .item.on small{color:color-mix(in srgb,var(--acc-fg) 78%,transparent)}
 
 html[data-look=custom] .content-tabs button.on,html[data-look=custom] #ok,html[data-look=custom] [data-act=go],html[data-look=custom] .item:not(.add)>.ic{color:var(--acc-fg)!important}html[data-look=custom] .ai-mod-icon{color:var(--fg)}
+
+.appearance-sheet,.appearance-sheet button,.appearance-sheet input{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.appearance-sheet h2{font-size:28px;font-weight:700}.appearance-sheet .tool-status{font-size:12px}.appearance-sheet .cap{font-size:12px}.appearance-sheet .appearance-theme,.appearance-sheet .appearance-wallpaper{font-size:12px}.appearance-sheet .appearance-tile{font-size:11px}.appearance-sheet .appearance-block-header .b{font-size:12px}
