@@ -256,12 +256,12 @@ fn horizon_always_pins_engine() {
 #[test]
 fn horizon_shares_account_store_but_keeps_game_homes_separate(){
     let (_temp,store,first)=fixture();
-    let cached=store.root.join("horizon-instances/old/launcher");
+    let cached=store.root.join("horizon-instances").join("old").join("launcher");
     fs::create_dir_all(cached.join("versions").join(horizon::TAG)).unwrap();
     let a=horizon::process(Path::new("horizon-launcher"),&store,&first).unwrap();
     let b=horizon::process(Path::new("horizon-launcher"),&store,&json!({"id":"second"})).unwrap();
     let env=|cmd:&std::process::Command,key:&str|cmd.get_envs().find(|(name,_)|*name==key).unwrap().1.unwrap().to_owned();
-    assert_eq!(env(&a,"HORIZON_LAUNCHER_HOME"),cached.as_os_str());
+    assert_eq!(std::path::PathBuf::from(env(&a,"HORIZON_LAUNCHER_HOME")),cached);
     assert_eq!(env(&a,"HORIZON_LAUNCHER_HOME"),env(&b,"HORIZON_LAUNCHER_HOME"));
     assert_ne!(env(&a,"HORIZON_HOME"),env(&b,"HORIZON_HOME"));
     assert!(horizon::process(Path::new("horizon-launcher"),&store,&json!({"id":"../escape"})).is_err());
