@@ -7,7 +7,7 @@
  try{
   await waitFor(()=>typeof S!=='undefined'&&S.db&&!NovaStartup.active);
   await document.fonts.ready;assert(document.fonts.check('12px Unbounded'),'Unbounded did not load');checks.push('font-Unbounded');
-  const animatedGrid=document.createElement('div');animatedGrid.className='grid';const animatedCard=document.createElement('article');animatedCard.className='card';animatedCard.textContent='Motion test';let contentAnimated=false;const nativeAnimate=animatedCard.animate.bind(animatedCard);animatedCard.animate=(...args)=>{contentAnimated=true;return nativeAnimate(...args);};animatedGrid.append(animatedCard);document.querySelector('#view').append(animatedGrid);await waitFor(()=>contentAnimated);assert(contentAnimated,'Async content did not animate');animatedGrid.remove();checks.push('async-content-motion');
+  const animatedGrid=document.createElement('div');animatedGrid.className='grid';const animatedCard=document.createElement('article');animatedCard.className='card';animatedCard.textContent='Motion test';let contentAnimated=false;const nativeAnimate=animatedCard.animate.bind(animatedCard);animatedCard.animate=(...args)=>{contentAnimated=true;return nativeAnimate(...args);};animatedGrid.append(animatedCard);document.querySelector('#view').append(animatedGrid);const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;if(reduced){await sleep(150);assert(!contentAnimated,'Reduced motion preference ignored');}else{await waitFor(()=>contentAnimated);assert(contentAnimated,'Async content did not animate');}animatedGrid.remove();checks.push(reduced?'async-content-reduced-motion':'async-content-motion');
   for(const tab of ['play','mods','settings','servers','console','history','horizon']){S.tab=tab;render();await sleep(70);assert(document.querySelector('#view').textContent.trim(),'Empty '+tab);checks.push(tab);}
   const id=S.sel,initial=await api.getDb();const copy=await api.duplicateInstance(id);assert(copy.db.instances.length===initial.instances.length+1,'Duplicate failed');acceptDb(copy.db);checks.push('rust-duplicate');
   const colours=[];
@@ -41,5 +41,5 @@
   const worlds=await api.backupWorlds(id);assert(worlds.id,'World backup failed');checks.push('rust-backup');
   acceptDb(await api.getDb());S.sel=id;S.tab='play';render();await sleep(250);assert(document.querySelector('#skin3d')?.width>0,'Character canvas absent');checks.push('character-canvas');
   await window.__TAURI__.core.invoke('dispatch',{method:'smokeReport',args:[{ok:true,checks,colours,webview:navigator.userAgent}]});
- }catch(e){await window.__TAURI__.core.invoke('dispatch',{method:'smokeReport',args:[{ok:false,error:e.message,stack:e.stack,startup:document.querySelector('.startup-caption')?.textContent,checks}]});}
+ }catch(e){await window.__TAURI__.core.invoke('dispatch',{method:'smokeReport',args:[{ok:false,error:e.message,stack:e.stack,startup:document.querySelector('.startup-caption')?.textContent,reducedMotion:matchMedia('(prefers-reduced-motion: reduce)').matches,visibility:document.visibilityState,checks}]});}
 })();

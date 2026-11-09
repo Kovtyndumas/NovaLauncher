@@ -81,7 +81,15 @@ jobs:
           node-version: 22
       - name: Package Windows and Linux installers
         if: runner.os != 'macOS'
-        run: npx --yes @tauri-apps/cli@2.12.4 build --bundles ${{ matrix.bundles }}
+        shell: python
+        run: |
+          import subprocess, time
+          command=['npx'+('.cmd' if __import__('os').name=='nt' else ''),'--yes','@tauri-apps/cli@2.12.4','build','--bundles','${{ matrix.bundles }}']
+          for attempt in range(3):
+              result=subprocess.run(command)
+              if result.returncode==0: break
+              if attempt==2: raise SystemExit(result.returncode)
+              time.sleep(10)
         env:
           NO_STRIP: 'true'
       - uses: actions/upload-artifact@v4
