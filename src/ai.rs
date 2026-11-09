@@ -79,7 +79,7 @@ pub fn plan(store: &Store, net: &Net, id:&str, prompt:&str) -> Result<Value> {
         if let Some(hit)=candidate {
             let versions=content::versions(net,s(hit,"project_id"),s(&inst,"version"),s(&inst,"loader"),"mod")?;
             if list(&json!({"v":versions}),"v").iter().any(|v|s(v,"version_type")=="release") && seen.insert(s(hit,"project_id").to_owned()) {
-                mods.push(json!({"project":s(hit,"project_id"),"title":s(hit,"title"),"description":s(hit,"description"),"reason":s(&item,"reason"),"slug":s(hit,"slug")}));continue;
+                mods.push(json!({"project":s(hit,"project_id"),"title":s(hit,"title"),"icon_url":s(hit,"icon_url"),"description":s(hit,"description"),"reason":s(&item,"reason"),"slug":s(hit,"slug")}));continue;
             }
         }
         skipped.push(query.to_owned());
