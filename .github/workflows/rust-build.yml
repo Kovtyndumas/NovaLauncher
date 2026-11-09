@@ -85,10 +85,12 @@ jobs:
         if: runner.os != 'macOS'
         shell: python
         run: |
-          import subprocess, time
+          import os, subprocess, time, uuid
           command=['npx'+('.cmd' if __import__('os').name=='nt' else ''),'--yes','@tauri-apps/cli@2.12.4','build','--bundles','${{ matrix.bundles }}']
           for attempt in range(3):
-              result=subprocess.run(command)
+              build_env=os.environ.copy()
+              build_env['TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE']='https://github.com/<owner>/<repo>/releases/download/<version>/<asset>?nova_bundle='+uuid.uuid4().hex
+              result=subprocess.run(command,env=build_env)
               if result.returncode==0: break
               if attempt==2: raise SystemExit(result.returncode)
               time.sleep(10)

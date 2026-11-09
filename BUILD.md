@@ -77,8 +77,8 @@ Workflow: [rust-build.yml](.github/workflows/rust-build.yml).
 # Обнови Cargo.toml, Cargo.lock, tauri.conf.json и RELEASE_NOTES.md.
 git add .
 git commit -m "Release Nova Rust"
-git tag rust-v3.0.0-beta.10
-git push origin main rust-v3.0.0-beta.10
+git tag rust-v3.0.0-beta.11
+git push origin main rust-v3.0.0-beta.11
 ```
 
 Не перезаписывай опубликованные теги. При исправлении версии создай новый номер.

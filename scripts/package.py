@@ -16,6 +16,7 @@ if not cargo: raise SystemExit('Install stable Rust from https://rustup.rs first
 if '--skip-build' not in sys.argv:
     subprocess.run([cargo,'build','--release','--locked'],env=env,check=True)
 if platform.system()!='Darwin':
+    env.setdefault('TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE','https://github.com/<owner>/<repo>/releases/download/<version>/<asset>?nova_bundle='+str(time.time_ns()))
     subprocess.run([cargo,'tauri','build','--bundles','nsis' if os.name=='nt' else 'appimage,deb'],env=env,check=True)
     raise SystemExit(0)
 out=root/'dist';out.mkdir(exist_ok=True)
