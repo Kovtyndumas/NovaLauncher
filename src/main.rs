@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod auth;
+mod ai;
 mod backend;
 mod backups;
 mod compatibility;
@@ -186,6 +187,23 @@ fn main() {
 }
 fn run() -> Result<()> {
     let root = root();
+    if std::env::args().any(|a| a == "--probe-ai") {
+        let temporary=std::env::temp_dir().join(format!("nova-ai-probe-{}",uuid::Uuid::new_v4()));
+        let result=(||{
+            let store=store::Store::new(temporary.clone())?;
+            write_json(&temporary.join("gemini-private.json"),&read_json(&root.join("gemini-private.json"))?)?;
+            store.edit(|db|{db["instances"]=json!([{"id":"ai-probe","name":"AI probe","version":"1.21.1","loader":"Fabric"}]);Ok(())})?;
+            let result=ai::plan(&store,&net::Net::new()?,"ai-probe","Сборка для повышения FPS и удобного инвентаря, не больше четырёх модов")?;
+            if std::env::args().any(|a| a == "--probe-ai-install") {
+                let ids=json!(list(&result,"mods").iter().map(|m|s(m,"project")).collect::<Vec<_>>());
+                let installed=ai::install(&store,&net::Net::new()?,&result,&store.get("ai-probe")?,s(&result,"id"),&ids,&|line|println!("{line}"))?;
+                println!("NOVA_GEMINI_INSTALL_OK {}",installed);
+            }
+            println!("NOVA_GEMINI_OK {}",result);Ok(())
+        })();
+        let _=std::fs::remove_dir_all(temporary);
+        return result;
+    }
     if std::env::args().any(|a| a == "--probe-network") {
         return probe(root);
     }

@@ -25,6 +25,8 @@ pub fn snapshot(root: &Path, category: &str, reason: &str) -> Result<Value> {
     );
     let dir = root.join("backups").join(category).join(&id);
     let result = (|| {
+        // Empty instances also need a restorable, explicitly empty snapshot.
+        fs::create_dir_all(dir.join("files"))?;
         for name in items(category) {
             copy_tree(&root.join(name), &dir.join("files").join(name), &[])?;
         }

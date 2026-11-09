@@ -293,6 +293,25 @@ fn local_preflight_detects_wrong_minecraft_version() {
     assert_eq!(r["errors"], 1);
 }
 #[test]
+fn bundled_fabric_libraries_are_not_top_level_duplicates() {
+    use std::io::{Cursor,Write};
+    fn jar(id:&str,nested:Option<&[u8]>)->Vec<u8>{
+        let mut zip=zip::ZipWriter::new(Cursor::new(Vec::new()));
+        let meta=if nested.is_some(){json!({"id":id,"version":"1.0","jars":[{"file":"nested.jar"}]})}else{json!({"id":id,"version":"1.0"})};
+        zip.start_file("fabric.mod.json",zip::write::SimpleFileOptions::default()).unwrap();zip.write_all(meta.to_string().as_bytes()).unwrap();
+        if let Some(bytes)=nested{zip.start_file("nested.jar",zip::write::SimpleFileOptions::default()).unwrap();zip.write_all(bytes).unwrap();}
+        zip.finish().unwrap().into_inner()
+    }
+    let (_t,store,inst)=fixture();let root=store.dir("test").unwrap();fs::create_dir_all(root.join("mods")).unwrap();
+    let library=jar("library",None);
+    fs::write(root.join("mods/one.jar"),jar("one",Some(&library))).unwrap();
+    fs::write(root.join("mods/two.jar"),jar("two",Some(&library))).unwrap();
+    let net=net::Net::new().unwrap();
+    assert_eq!(compatibility::check(&root,&net,&inst,false).unwrap()["errors"],0);
+    fs::write(root.join("mods/duplicate.jar"),jar("one",None)).unwrap();
+    assert_eq!(compatibility::check(&root,&net,&inst,false).unwrap()["errors"],1);
+}
+#[test]
 fn legacy_world_backup_can_be_restored() {
     let t = tempfile::tempdir().unwrap();
     let root = t.path();

@@ -9,3 +9,5 @@ node_modules/
 __pycache__/
 /gen/schemas/
 index.before-animation.html
+
+gemini-private.json

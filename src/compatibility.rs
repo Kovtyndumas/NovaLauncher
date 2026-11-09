@@ -17,6 +17,7 @@ struct Mod {
     breaks: Value,
     loader: String,
     server: bool,
+    nested: bool,
 }
 pub fn matches(version: &str, range: &Value) -> Option<bool> {
     if let Some(ranges) = range.as_array() {
@@ -167,6 +168,7 @@ fn inspect<R: Read + Seek>(
             breaks: meta["breaks"].clone(),
             loader: "Fabric".into(),
             server: s(&meta, "environment") == "server",
+            nested: depth > 0,
         });
         if depth < 1 {
             for jar in list(&meta, "jars").iter().take(64) {
@@ -232,6 +234,7 @@ pub fn check(root: &Path, net: &Net, inst: &Value, want_online: bool) -> Result<
     let mut mods = vec![];
     let mut items = vec![];
     let mut ids = HashMap::<String, (String, String)>::new();
+    let mut nested_sources = HashMap::<String, bool>::new();
     let mut checked = 0;
     let mut disabled = 0;
     fn issue(issues: &mut Vec<Value>, severity: &str, file: &str, message: String) {
@@ -267,8 +270,9 @@ pub fn check(root: &Path, net: &Net, inst: &Value, want_online: bool) -> Result<
                 .chain(&m.provides)
                 .filter(|id| !id.is_empty())
             {
-                if let Some((_, file)) = ids.get(id) {
-                    if file != name {
+                if let Some((version, file)) = ids.get(id) {
+                    let was_nested=nested_sources.get(id).copied().unwrap_or(false);
+                    if file != name && !m.nested && !was_nested {
                         issue(
                             &mut issues,
                             "error",
@@ -276,8 +280,15 @@ pub fn check(root: &Path, net: &Net, inst: &Value, want_online: bool) -> Result<
                             format!("Дубликат мода {id} в {file}"),
                         );
                     }
+                    // Fabric resolves bundled jar-in-jar copies; they are not duplicate
+                    // top-level mods. Prefer an explicit copy, or a newer nested version.
+                    if !m.nested || (was_nested && matches(&m.version,&json!(format!(">{version}")))==Some(true)) {
+                        ids.insert(id.clone(),(m.version.clone(),name.into()));
+                        nested_sources.insert(id.clone(),m.nested);
+                    }
                 } else {
                     ids.insert(id.clone(), (m.version.clone(), name.into()));
+                    nested_sources.insert(id.clone(),m.nested);
                 }
             }
             if m.loader != s(inst, "loader")

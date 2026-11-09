@@ -21,6 +21,7 @@ pub struct Backend {
     pub events: Events,
     pub presence: Arc<Presence>,
     pub update: Mutex<Value>,
+    pub ai_plans: Mutex<Value>,
 }
 impl Backend {
     pub fn new(root: PathBuf, events: Events) -> Result<Arc<Self>> {
@@ -34,6 +35,7 @@ impl Backend {
             child: Mutex::new(None),
             events,
             presence,
+            ai_plans: Mutex::new(json!({})),
             update: Mutex::new(
                 json!({"phase":"idle","message":"Rust-обновления ещё не проверялись"}),
             ),
@@ -74,6 +76,18 @@ impl Backend {
             }
             "versions" => minecraft::versions(&self.store, &self.net),
             "history" => self.history(),
+            "aiKeyHelp" => { open::that("https://aistudio.google.com/app/apikey")?; Ok(Value::Null) },
+            "aiStatus" => Ok(crate::ai::status(&self.store)),
+            "aiConfigure" => crate::ai::configure(&self.store, &self.net, &arg(0)),
+            "aiPlan" => {
+                let plan=crate::ai::plan(&self.store,&self.net,&id,arg(1).as_str().unwrap_or(""))?;
+                self.ai_plans.lock().unwrap()[&id]=plan.clone();
+                Ok(plan)
+            },
+            "aiInstall" => self.operation(|| {
+                let plan=self.ai_plans.lock().unwrap()[&id].clone();
+                crate::ai::install(&self.store,&self.net,&plan,&self.store.get(&id)?,arg(1).as_str().unwrap_or(""),&arg(2),&log)
+            }),
             "search" => content::search(&self.net, &arg(0)),
             "mods" => {
                 let root = self.store.dir(&id)?;

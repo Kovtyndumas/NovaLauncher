@@ -77,8 +77,8 @@ Workflow: [rust-build.yml](.github/workflows/rust-build.yml).
 # Обнови Cargo.toml, Cargo.lock, tauri.conf.json и RELEASE_NOTES.md.
 git add .
 git commit -m "Release Nova Rust"
-git tag rust-v3.0.0-beta.6
-git push origin main rust-v3.0.0-beta.6
+git tag rust-v3.0.0-beta.7
+git push origin main rust-v3.0.0-beta.7
 ```
 
 Не перезаписывай опубликованные теги. При исправлении версии создай новый номер.
@@ -88,3 +88,5 @@ git push origin main rust-v3.0.0-beta.6
 ## Архив Electron
 
 Старый проект сохранён в `legacy/electron`, включая прежние инструкции и workflow как исторические файлы. GitHub запускает только workflow в корневой `.github/workflows`. Данные Electron, Java и Rust хранятся в разных папках.
+
+Для проверки реального подбора Gemini используйте `--probe-ai` после настройки API-ключа в приложении. Проверка создаёт временный инстанс и не устанавливает моды.

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build Nova Rust. macOS packaging needs no Node, Java, or Finder automation."""
 from pathlib import Path
-import os, shutil, subprocess, platform, plistlib, tempfile, json, sys
+import os, shutil, subprocess, platform, plistlib, tempfile, json, sys, time
 root=Path(__file__).resolve().parent.parent
 os.chdir(root)
 version=json.loads((root/"tauri.conf.json").read_text())["version"]
@@ -34,6 +34,11 @@ with tempfile.TemporaryDirectory(prefix='nova-rust-dmg-')as tmp:
     stage=Path(tmp)
     subprocess.run(['ditto',str(app),str(stage/app.name)],check=True)
     (stage/'Applications').symlink_to('/Applications')
-    subprocess.run(['hdiutil','create','-ov','-volname','Nova Rust','-srcfolder',str(stage),'-format','UDZO',str(dmg)],check=True)
+    command=['hdiutil','create','-ov','-volname','Nova Rust','-srcfolder',str(stage),'-format','UDZO',str(dmg)]
+    for attempt in range(3):
+        result=subprocess.run(command)
+        if result.returncode==0: break
+        if attempt==2: result.check_returncode()
+        time.sleep(5)
 subprocess.run(['hdiutil','verify',str(dmg)],check=True)
 print('Ready:',dmg)
