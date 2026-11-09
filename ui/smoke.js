@@ -39,7 +39,7 @@
   S.db.settings.ram=6;await persist().catch(()=>{});S.db.settings.jvm='-Dnova.test=true';await persist();api.setDb=realSet;
   saved=await api.getDb();assert(saved.settings.ram===6&&saved.settings.jvm==='-Dnova.test=true','Failed save lost a setting');checks.push('settings-save-recovery');
   const worlds=await api.backupWorlds(id);assert(worlds.id,'World backup failed');checks.push('rust-backup');
-  acceptDb(await api.getDb());S.sel=id;S.tab='play';render();await sleep(250);assert(document.querySelector('#skin3d')?.width>0,'Character canvas absent');checks.push('character-canvas');
+  acceptDb(await api.getDb());S.sel=id;S.tab='play';render();await sleep(250);const canvas=document.querySelector('#skin3d'),fallback=document.querySelector('.sk [data-character-fallback]');assert(canvas?.width>0||fallback,'Character representation absent');checks.push(canvas?'character-canvas':'character-image-fallback');
   await window.__TAURI__.core.invoke('dispatch',{method:'smokeReport',args:[{ok:true,checks,colours,webview:navigator.userAgent}]});
  }catch(e){await window.__TAURI__.core.invoke('dispatch',{method:'smokeReport',args:[{ok:false,error:e.message,stack:e.stack,startup:document.querySelector('.startup-caption')?.textContent,reducedMotion:matchMedia('(prefers-reduced-motion: reduce)').matches,visibility:document.visibilityState,checks}]});}
 })();

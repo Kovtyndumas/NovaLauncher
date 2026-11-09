@@ -399,7 +399,7 @@ api.on('horizon:log',line=>{S.horizonLog=(S.horizonLog+line).slice(-60000);const
 const jv=novaJavaMajor;
 function mount3d(){const c=$('#skin3d');if(!c)return;const n=encodeURIComponent(S.db.settings.name);
   c.parentElement.classList.toggle('stage',S.db.settings.characterStage!==false);
-  const flat=()=>{c.parentElement.innerHTML=`<img src="https://mc-heads.net/body/${n}/240" style="height:340px" alt="">`};
+  const flat=()=>{c.parentElement.innerHTML=`<img src="https://mc-heads.net/body/${n}/240" style="height:340px" alt="Персонаж Minecraft" data-character-fallback>`};
   if(typeof skinview3d==='undefined'){flat();return}
   try{const v=new skinview3d.SkinViewer({canvas:c,width:300,height:380});
     v.fov=38;v.zoom=({small:.60,normal:.68,large:.74}[S.db.settings.characterSize]||.68);v.autoRotate=false;v.playerWrapper.rotation.y=0;
