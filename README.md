@@ -7,7 +7,7 @@
 
 ## Скачать
 
-### [Открыть релиз Nova Rust 3.0.0-beta.4 →](https://github.com/Kovtyndumas/NovaLauncher/releases/tag/rust-v3.0.0-beta.4)
+### [Открыть релиз Nova Rust 3.0.0-beta.5 →](https://github.com/Kovtyndumas/NovaLauncher/releases/tag/rust-v3.0.0-beta.5)
 
 В разделе **Assets** выбери свой установщик:
 

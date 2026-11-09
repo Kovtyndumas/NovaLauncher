@@ -546,6 +546,7 @@ api.on('game:closed',(code,report)=>{S.playing=false;S.gameRunning=false;if(repo
   const first=S.db.settings.introSeen===false||(!S.db.settings.onboarded&&S.db.settings.introSeen!==true);
   await NovaStartup.play({first,enabled:S.db.settings.startupAnimations!==false});if(S.db.settings.introSeen!==true){S.db.settings.introSeen=true;await persist();}
   if(!S.db.settings.onboarded)onb();else if(S.db.settings.ms)api.restore().then(n=>{if(n){S.acc=n;S.db.settings.name=n;render();}}).catch(er=>toast('Не удалось обновить вход Microsoft: '+er.message));
+  window.NovaReady=true;
   try{const result=api.versions?await api.versions():{versions:novaReleaseVersions(await (await fetch('https://piston-meta.mojang.com/mc/game/version_manifest_v2.json')).json())};S.versions=result.versions;versionOptions();}catch(er){toast('Каталог версий недоступен: '+er.message);}
   pingAll();
 })().catch(error=>NovaStartup.fail(error.message));

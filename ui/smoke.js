@@ -5,7 +5,7 @@
  const waitFor=async condition=>{for(let n=0;n<150;n++){if(condition())return;await sleep(30);}throw Error('Timed out waiting for UI');};
  const luminance=color=>{const values=color.match(/[\d.]+/g).slice(0,3).map(Number).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;});return .2126*values[0]+.7152*values[1]+.0722*values[2];};
  try{
-  await waitFor(()=>typeof S!=='undefined'&&S.db&&!NovaStartup.active);
+  await waitFor(()=>window.NovaReady===true&&!NovaStartup.active);
   await document.fonts.ready;assert(document.fonts.check('12px Unbounded'),'Unbounded did not load');checks.push('font-Unbounded');
   const animatedGrid=document.createElement('div');animatedGrid.className='grid';const animatedCard=document.createElement('article');animatedCard.className='card';animatedCard.textContent='Motion test';let contentAnimated=false;const nativeAnimate=animatedCard.animate.bind(animatedCard);animatedCard.animate=(...args)=>{contentAnimated=true;return nativeAnimate(...args);};animatedGrid.append(animatedCard);document.querySelector('#view').append(animatedGrid);const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;if(reduced){await sleep(150);assert(!contentAnimated,'Reduced motion preference ignored');}else{await waitFor(()=>contentAnimated);assert(contentAnimated,'Async content did not animate');}animatedGrid.remove();checks.push(reduced?'async-content-reduced-motion':'async-content-motion');
   for(const tab of ['play','mods','settings','servers','console','history','horizon']){S.tab=tab;render();await sleep(70);assert(document.querySelector('#view').textContent.trim(),'Empty '+tab);checks.push(tab);}
