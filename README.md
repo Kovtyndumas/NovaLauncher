@@ -29,7 +29,7 @@ API-ключ создаётся в [Google AI Studio](https://aistudio.google.co
 
 ## Скачать
 
-### [Открыть релиз Nova Rust 3.0.0-beta.12 →](https://github.com/Kovtyndumas/NovaLauncher/releases/tag/rust-v3.0.0-beta.12)
+### [Открыть релиз Nova Rust 3.0.0-beta.13 →](https://github.com/Kovtyndumas/NovaLauncher/releases/tag/rust-v3.0.0-beta.13)
 
 В разделе **Assets** выбери свой установщик:
 
