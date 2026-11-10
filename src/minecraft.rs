@@ -531,7 +531,7 @@ pub fn launch(
     let vanilla = version(store, net, mc)?;
     let major = number(&vanilla["javaVersion"], "majorVersion", 8) as u32;
     let target_arch = runtime::game_arch(&vanilla);
-    let java = runtime::ensure(store, net, major, target_arch, &*log)?;
+    let java = runtime::ensure_for(store, net, inst, major, target_arch, &*log)?;
     log(format!("Java {major} · {}", java.display()));
     let profile = loader(store, net, inst, &vanilla, &java, &*log)?;
     let game_arch = if target_arch == "x64" {
@@ -603,7 +603,7 @@ pub fn launch(
     ] {
         vars.insert(k.into(), v);
     }
-    let settings = store.settings();
+    let settings = store.game_settings(inst);
     let mut args = vec![
         "-Xms512M".to_string(),
         format!("-Xmx{}G", number(&settings, "ram", 4).clamp(1, 64)),

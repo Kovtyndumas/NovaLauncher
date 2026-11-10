@@ -72,22 +72,13 @@ fn runtime_arch(exe: &Path) -> String {
         "x64".into()
     }
 }
-pub fn ensure(
-    store: &Store,
-    net: &Net,
-    version: u32,
-    target_arch: &str,
-    log: &dyn Fn(String),
-) -> Result<PathBuf> {
-    ensure_inner(store,net,version,target_arch,log,false)
-}
 /// Horizon's resource exporter needs the JDK tools, independently of a Java
 /// instance's custom runtime (which may legitimately be Java 8 or 17).
 pub fn ensure_jdk(store:&Store,net:&Net,version:u32,target_arch:&str,log:&dyn Fn(String))->Result<PathBuf>{
-    ensure_inner(store,net,version,target_arch,log,true)
+    ensure_inner(store,net,version,target_arch,log,true,&store.settings())
 }
-fn ensure_inner(store:&Store,net:&Net,version:u32,target_arch:&str,log:&dyn Fn(String),jdk:bool)->Result<PathBuf>{
-    let settings = store.settings();
+pub fn ensure_for(store:&Store,net:&Net,inst:&Value,version:u32,target_arch:&str,log:&dyn Fn(String))->Result<PathBuf>{ensure_inner(store,net,version,target_arch,log,false,&store.game_settings(inst))}
+fn ensure_inner(store:&Store,net:&Net,version:u32,target_arch:&str,log:&dyn Fn(String),jdk:bool,settings:&Value)->Result<PathBuf>{
     let custom = s(&settings, "java");
     if !jdk && !custom.is_empty() {
         let exe = PathBuf::from(custom);

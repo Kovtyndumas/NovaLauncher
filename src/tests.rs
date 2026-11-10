@@ -424,3 +424,79 @@ fn changing_loader_does_not_reuse_old_loader_version() {
     store.merge(next, &base).unwrap();
     assert!(store.get("test").unwrap()["loaderVersion"].is_null());
 }
+
+#[test]
+fn database_recovers_previous_commit_and_preserves_corrupt_file() {
+    let (temp, store, _) = fixture();
+    store.edit(|db| { db["settings"]["ram"] = json!(8); Ok(()) }).unwrap();
+    drop(store);
+    fs::write(temp.path().join("db.json"), b"interrupted write").unwrap();
+    let recovered = store::Store::new(temp.path().into()).unwrap();
+    assert_eq!(recovered.get("test").unwrap()["name"], "My World");
+    assert_eq!(recovered.settings()["ram"], 4);
+    assert_eq!(util::read_json(&temp.path().join("db.json")).unwrap(), recovered.db());
+    let corrupt = fs::read_dir(temp.path()).unwrap().filter_map(Result::ok)
+        .find(|entry| entry.file_name().to_string_lossy().starts_with("db.corrupt-")).unwrap();
+    assert_eq!(fs::read(corrupt.path()).unwrap(), b"interrupted write");
+}
+
+#[test]
+fn database_recovers_missing_primary_but_prefers_valid_primary() {
+    let (temp, store, _) = fixture();
+    store.edit(|db| { db["settings"]["ram"] = json!(8); Ok(()) }).unwrap();
+    drop(store);
+    assert_eq!(store::Store::new(temp.path().into()).unwrap().settings()["ram"], 8);
+    fs::remove_file(temp.path().join("db.json")).unwrap();
+    assert!(store::Store::new(temp.path().into()).unwrap().get("test").is_ok());
+}
+
+#[test]
+fn failed_database_backup_keeps_committed_state() {
+    let (temp, store, _) = fixture();
+    let before = store.db();
+    fs::remove_file(temp.path().join("db.backup.json")).unwrap();
+    fs::create_dir(temp.path().join("db.backup.json")).unwrap();
+    assert!(store.edit(|db| { db["settings"]["ram"] = json!(8); Ok(()) }).is_err());
+    assert_eq!(store.db(), before);
+    assert_eq!(util::read_json(&temp.path().join("db.json")).unwrap(), before);
+}
+
+#[test]
+fn changing_mods_records_a_restorable_timeline_point() {
+    let temp=tempfile::tempdir().unwrap();
+    let backend=backend::Backend::new(temp.path().into(),std::sync::Arc::new(|_,_|{})).unwrap();
+    backend.store.add(json!({"id":"timeline","name":"Timeline","version":"1.21.1","loader":"Fabric"})).unwrap();
+    let root=backend.store.dir("timeline").unwrap();fs::create_dir(root.join("mods")).unwrap();fs::write(root.join("mods/a.jar"),b"original").unwrap();
+    backend.call("toggle",&[json!("timeline"),json!("a.jar")]).unwrap();
+    let history=backend.call("changeHistory",&[json!("timeline")]).unwrap();
+    assert_eq!(history[0]["changes"].as_array().unwrap().len(),2);
+    let backup=s(&history[0],"backup");assert!(!backup.is_empty());
+    backend.call("rollback",&[json!("timeline"),json!(backup)]).unwrap();
+    assert_eq!(fs::read(root.join("mods/a.jar")).unwrap(),b"original");assert!(!root.join("mods/a.jar.disabled").exists());
+    assert_eq!(backend.call("changeHistory",&[json!("timeline")]).unwrap()[0]["label"],"Откат сборки");
+}
+
+#[test]
+fn preflight_blocks_missing_custom_java_without_downloading() {
+    let (_temp,store,inst)=fixture();store.edit(|db|{db["settings"]["java"]=json!("/nova-missing/java");Ok(())}).unwrap();
+    let report=safety::preflight(&store,&inst).unwrap();
+    assert!(report["errors"].as_u64().unwrap()>0);
+    assert!(list(&report,"checks").iter().any(|v|v["key"]=="java"&&v["status"]=="error"));
+    assert!(!store.root.join("downloads").exists());
+}
+
+#[test]
+fn failed_operation_does_not_offer_a_partially_installed_undo_point() {
+    let temp=tempfile::tempdir().unwrap();
+    backups::snapshot(temp.path(),"mods","Перед восстановлением после ошибки").unwrap();
+    safety::record(temp.path(),"Неудачная установка",&json!({}),Some("download cancelled"),"").unwrap();
+    assert!(safety::history(temp.path()).unwrap()[0]["backup"].is_null());
+}
+
+#[test]
+fn launch_profile_api_never_returns_account_credentials() {
+    let temp=tempfile::tempdir().unwrap();let backend=backend::Backend::new(temp.path().into(),std::sync::Arc::new(|_,_|{})).unwrap();
+    backend.store.add(json!({"id":"profile","name":"Profile","version":"1.21.1","loader":"Vanilla"})).unwrap();
+    backend.store.edit(|db|{db["settings"]["msRefresh"]=json!("PRIVATE-REFRESH");db["settings"]["name"]=json!("PrivateName");Ok(())}).unwrap();
+    let profile=backend.call("instanceSettings",&[json!("profile")]).unwrap();assert!(!profile.to_string().contains("PRIVATE-REFRESH"));assert!(!profile.to_string().contains("PrivateName"));
+}

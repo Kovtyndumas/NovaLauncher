@@ -226,7 +226,7 @@ fn install_version(
         bail!("Неподходящий файл контента");
     }
     let sha = s(&file["hashes"], "sha512");
-    if sha.len() != 128 {
+    if sha.len() != 128 || !sha.bytes().all(|b|b.is_ascii_hexdigit()) {
         bail!("Нет SHA-512 файла");
     }
     let project = s(version, "project_id");
@@ -244,14 +244,15 @@ fn install_version(
         .join(format!("{name}{}", if disabled { ".disabled" } else { "" }));
     let temp = root
         .join(".nova-downloads")
-        .join(format!("{}-{name}", uuid::Uuid::new_v4()));
+        .join(sha.to_ascii_lowercase());
     log(format!("Установка {name}"));
-    net.download(
+    net.download_named(
         s(file, "url"),
         &temp,
         "sha512",
         sha,
         number(file, "size", 0),
+        name,
     )?;
     fs::create_dir_all(dest.parent().unwrap())?;
     fs::rename(temp, &dest)?;
@@ -604,16 +605,16 @@ pub fn install_pack(
         .and_then(|v| v.first())
         .context("Нет сборки для выбранной версии")?;
     let f = primary(latest)?;
-    let p = store
-        .root
-        .join("downloads")
-        .join(format!("{}.mrpack", uuid::Uuid::new_v4()));
-    net.download(
+    let digest=s(&f["hashes"],"sha512");
+    if digest.len()!=128||!digest.bytes().all(|b|b.is_ascii_hexdigit()){bail!("Нет SHA-512 модпака");}
+    let p = store.root.join("downloads").join(format!("{}.mrpack",digest.to_ascii_lowercase()));
+    net.download_named(
         s(f, "url"),
         &p,
         "sha512",
         s(&f["hashes"], "sha512"),
         number(f, "size", 0),
+        s(f,"filename"),
     )?;
     let result = import_pack(store, net, &p, log);
     let _ = fs::remove_file(p);
@@ -674,6 +675,7 @@ pub fn export_pack(store: &Store, inst: &Value, target: &Path) -> Result<Value> 
             &stage.join("modrinth.index.json"),
             &json!({"formatVersion":1,"game":"minecraft","versionId":"1.0.0","name":s(inst,"name"),"dependencies":deps,"files":files}),
         )?;
+        fs::write(stage.join("NOVA-README.txt"),format!("{}\nMinecraft {} · {}\n\nИмпорт: Nova → Импорт .mrpack → выберите этот файл.\nСборка создаётся отдельно. Миры и аккаунты не включены.\nДля игры понадобится собственный вход Microsoft либо офлайн-профиль.\nПроверьте настройки RAM и запустите проверку совместимости перед первой игрой.\n",s(inst,"name"),s(inst,"version"),s(inst,"loader")))?;
         zip_tree(&stage, target)?;
         Ok(json!({"count":files.len(),"omitted":[]}))
     })();

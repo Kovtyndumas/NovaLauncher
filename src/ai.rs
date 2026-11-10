@@ -151,3 +151,22 @@ mod tests {
         assert!(!root.join("mods/partial.jar").exists());
     }
 }
+
+/// A small, deterministic optimization plan also works without Gemini credentials.
+/// Every suggestion must still have a stable release for the exact loader/version.
+pub fn performance_plan(store:&Store,net:&Net,id:&str)->Result<Value>{
+    let inst=store.get(id)?;
+    if !["Fabric","Quilt","Forge","NeoForge"].contains(&s(&inst,"loader")){bail!("Для оптимизации модами выберите Fabric, Quilt, Forge или NeoForge");}
+    let installed=content::files(&store.dir(id)?,"mod")?;
+    let known:HashSet<&str>=installed.as_array().unwrap().iter().map(|v|s(v,"project")).collect();
+    let mut mods=vec![];let mut skipped=vec![];let mut already=vec![];
+    for (slug,reason) in [("sodium","Оптимизация рендеринга. Может конфликтовать с другими заменами рендера."),("lithium","Оптимизация игровой логики без изменения механик."),("ferrite-core","Уменьшение потребления памяти некоторыми игровыми структурами."),("immediatelyfast","Оптимизация отдельных операций отрисовки.")] {
+        let project=net.json(&format!("https://api.modrinth.com/v2/project/{slug}"))?;
+        let project_id=s(&project,"id");
+        if known.contains(project_id){already.push(s(&project,"title").to_owned());continue;}
+        let versions=content::versions(net,project_id,s(&inst,"version"),s(&inst,"loader"),"mod")?;
+        if !versions.as_array().is_some_and(|list|list.iter().any(|v|s(v,"version_type")=="release")){skipped.push(slug);continue;}
+        mods.push(json!({"project":project_id,"title":s(&project,"title"),"icon_url":s(&project,"icon_url"),"reason":reason,"slug":slug}));
+    }
+    Ok(json!({"id":uuid::Uuid::new_v4().to_string(),"instance":id,"version":s(&inst,"version"),"loader":s(&inst,"loader"),"summary":"Базовая оптимизация без Gemini. Nova проверила наличие стабильных версий; результат FPS зависит от компьютера, мира и остальных модов. Перед установкой можно убрать любой пункт.","mods":mods,"skipped":skipped,"alreadyInstalled":already,"hardwareUsed":false}))
+}

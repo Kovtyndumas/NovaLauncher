@@ -6,12 +6,19 @@ mod backups;
 mod compatibility;
 mod content;
 mod design;
+mod downloads;
 mod hardware;
 mod recovery;
+mod safety;
 mod horizon;
 mod minecraft;
+mod migration;
 mod net;
 mod presence;
+mod profiles;
+mod checkpoints;
+mod worlds;
+mod diagnostics;
 mod runtime;
 mod store;
 #[cfg(test)]
@@ -114,6 +121,8 @@ async fn dispatch(
     let ui_method = method.clone();
     let app2 = app.clone();
     tauri::async_runtime::spawn_blocking(move||->Result<Value>{
+ if method=="exportDiagnostic"{let id=args.first().and_then(Value::as_str).unwrap_or("");let report=crate::diagnostics::report(&backend.store,id,args.get(1).and_then(Value::as_str).unwrap_or(""))?;let Some(path)=rfd::FileDialog::new().set_file_name("Nova-diagnostics.txt").add_filter("Текст",&["txt"]).save_file()else{return Ok(Value::Null)};crate::util::atomic(&path,s(&report,"text").as_bytes())?;return Ok(json!({"saved":true}));}
+ if method=="migrationScan" {let Some(path)=rfd::FileDialog::new().set_title("Сборки Prism / MultiMC или папка Minecraft").pick_folder()else{return Ok(Value::Null)};let plan=crate::migration::scan(&path)?;*backend.migration.lock().unwrap()=plan.clone();return Ok(plan);}
  if method=="chooseWallpaper"{return match rfd::FileDialog::new().set_title("Свои обои").add_filter("Изображение",&["png","jpg","jpeg","webp"]).pick_file(){Some(path)=>crate::design::wallpaper(&path),None=>Ok(Value::Null)};}
  if method=="importDesign"{return match rfd::FileDialog::new().set_title("Импорт оформления Nova").add_filter("Оформление Nova",&["json"]).pick_file(){Some(path)=>crate::design::import(&path),None=>Ok(Value::Null)};}
  if method=="exportDesign"{return match rfd::FileDialog::new().set_file_name("My-Nova.nova-theme.json").add_filter("Оформление Nova",&["json"]).save_file(){Some(path)=>crate::design::export(&path,args.first().unwrap_or(&Value::Null)),None=>Ok(Value::Null)};}
@@ -121,7 +130,7 @@ async fn dispatch(
  if method=="exportPack"{let id=args.first().and_then(Value::as_str).unwrap_or("");let inst=backend.store.get(id)?;let Some(path)=rfd::FileDialog::new().set_file_name(format!("{}.mrpack",s(&inst,"name"))).add_filter("Modrinth",&["mrpack"]).save_file()else{return Ok(Value::Null)};args.push(json!(path));}
  if method=="deleteInstance"{let answer=rfd::MessageDialog::new().set_title("Удалить сборку?").set_description("Файлы и миры сохранятся в deleted-instances. Восстановить их можно из папки данных Nova Rust.").set_buttons(rfd::MessageButtons::OkCancel).show();if answer!=rfd::MessageDialogResult::Ok{return Ok(Value::Null);}}
  if method=="importLegacy"{let Some(path)=rfd::FileDialog::new().set_title("Папка данных Nova с db.json").set_directory(crate::store::app_data("nova-launcher")).pick_folder()else{return Ok(Value::Null)};args=vec![json!(path)];}
- let result=backend.call(&method,&args);if ui_method=="launcherInstall"&&result.is_ok(){if let Some(w)=app2.get_webview_window("main"){let _=w.set_focus();}}result
+ let result=backend.call(&method,&args);if ui_method=="launcherRecover"&&result.is_ok(){app2.exit(0);}if ui_method=="launcherInstall"&&result.is_ok(){if let Some(w)=app2.get_webview_window("main"){let _=w.set_focus();}}result
  }).await.map_err(|e|e.to_string())?.map_err(|e|e.to_string())
 }
 fn login_window(app: &tauri::AppHandle, backend: &Backend) -> Result<Value> {
@@ -282,6 +291,18 @@ fn probe(root: PathBuf) -> Result<()> {
             anyhow::bail!("Не установлен {kind}");
         }
     }
+    let history=b.call("changeHistory",&[json!("probe")])?;
+    if history.as_array().is_none_or(|v|v.len()!=3){anyhow::bail!("Установка контента не записалась в историю");}
+    let project=b.call("projectDetails",&[json!("sodium")])?;
+    if s(&project,"id").is_empty(){anyhow::bail!("Нет описания проекта");}
+    let compatible=b.call("projectVersions",&[json!("sodium"),json!("1.21.1"),json!("Fabric"),json!("mod")])?;
+    if compatible.as_array().is_none_or(|v|v.is_empty()){anyhow::bail!("Нет совместимых версий Sodium");}
+    let plan=b.call("performancePlan",&[json!("probe")])?;
+    if list(&plan,"mods").is_empty(){anyhow::bail!("Пустая подборка оптимизации");}
+    let selected=json!(list(&plan,"mods").iter().map(|v|s(v,"project")).collect::<Vec<_>>());
+    let installed=b.call("aiInstall",&[json!("probe"),plan["id"].clone(),selected])?;
+    if number(&installed,"count",0)==0{anyhow::bail!("Моды оптимизации не установлены");}
+    println!("NOVA_RUST_OPTIMIZATION_OK · {} mods · project details · compatible versions · change history",installed["count"]);
     println!(
         "NOVA_RUST_NETWORK_OK · {} releases · mod shader resourcepack",
         list(&versions, "versions").len()

@@ -23,6 +23,7 @@ pub struct Backend {
     pub update: Mutex<Value>,
     pub ai_plans: Mutex<Value>,
     pub horizon_cancel: AtomicBool,
+    pub migration: Mutex<Value>,
 }
 impl Backend {
     pub fn new(root: PathBuf, events: Events) -> Result<Arc<Self>> {
@@ -38,6 +39,7 @@ impl Backend {
             presence,
             ai_plans: Mutex::new(json!({})),
             horizon_cancel: AtomicBool::new(false),
+            migration: Mutex::new(Value::Null),
             update: Mutex::new(
                 json!({"phase":"idle","message":"Rust-обновления ещё не проверялись"}),
             ),
@@ -63,13 +65,58 @@ impl Backend {
             }
         }
         let _guard = Guard(&self.busy);
+        self.net.1.reset();
         job()
+    }
+    fn mutate<F>(&self, id: &str, label: &str, protect_worlds: bool, job: F) -> Result<Value>
+    where F: FnOnce() -> Result<Value> {
+        self.operation(|| {
+            let root=self.store.dir(id)?;
+            let before=crate::safety::inventory(&root)?;
+            let previous=backups::list_backups(&root,"mods")?;
+            let prior_backup=previous.as_array().and_then(|items|items.first()).map(|v|s(v,"id")).unwrap_or("");
+            if ["Включение / выключение мода","Удаление мода","Возврат удалённого мода","Возврат отключённых модов"].contains(&label){backups::snapshot(&root,"mods",&format!("Перед действием: {label}"))?;}
+            if protect_worlds {crate::safety::auto_worlds(&self.store,id,true)?;}
+            let result=job();
+            let error=result.as_ref().err().map(|e|format!("{e:#}"));
+            if let Err(error)=crate::safety::record(&root,label,&before,error.as_deref(),prior_backup) {self.log(format!("Не удалось записать историю изменений: {error}"));}
+            result
+        })
     }
     pub fn call(self: &Arc<Self>, method: &str, args: &[Value]) -> Result<Value> {
         let arg = |n: usize| args.get(n).cloned().unwrap_or(Value::Null);
         let id = arg(0).as_str().unwrap_or("").to_owned();
         let log = |line| self.log(line);
         match method {
+            "instanceSettings" => {let inst=self.store.get(&id)?;let mut effective=self.store.game_settings(&inst);effective.as_object_mut().unwrap().retain(|key,_|crate::profiles::KEYS.contains(&key.as_str()));Ok(json!({"overrides":inst["launchSettings"],"effective":effective}))},
+            "instanceSettingsSave" => self.operation(||{let settings=crate::profiles::clean(&arg(1))?;self.store.edit(|db|{let inst=db["instances"].as_array_mut().unwrap().iter_mut().find(|v|s(v,"id")==id).context("Сборка не найдена")?;if settings.as_object().unwrap().is_empty(){inst.as_object_mut().unwrap().remove("launchSettings");}else{inst["launchSettings"]=settings.clone();}Ok(())})?;Ok(self.store.public())}),
+            "workingPoints" => crate::checkpoints::list(&self.store,&id),
+            "confirmWorking" => self.operation(||crate::checkpoints::confirm(&self.store,&id,arg(1).as_str().unwrap_or(""))),
+            "restoreWorking" => self.operation(||crate::checkpoints::restore(&self.store,&id,arg(1).as_str().unwrap_or(""))),
+            "createTrial" => self.operation(||crate::checkpoints::trial(&self.store,&id)),
+            "promoteTrial" => self.operation(||crate::checkpoints::promote(&self.store,&self.net,&id)),
+            "worlds" => crate::worlds::list(&self.store,&id),
+            "worldBackupsSingle" => crate::worlds::backups(&self.store,&id,arg(1).as_str().unwrap_or("")),
+            "worldBackupSingle" => self.operation(||crate::worlds::backup(&self.store,&id,arg(1).as_str().unwrap_or(""))),
+            "worldRestoreSingle" => self.operation(||crate::worlds::restore(&self.store,&id,arg(1).as_str().unwrap_or(""),arg(2).as_str().unwrap_or(""))),
+            "worldDuplicate" => self.operation(||crate::worlds::duplicate(&self.store,&id,arg(1).as_str().unwrap_or(""))),
+            "worldOpen" => crate::worlds::open(&self.store,&id,arg(1).as_str().unwrap_or("")),
+            "diagnosticReport" => crate::diagnostics::report(&self.store,&id,arg(1).as_str().unwrap_or("")),
+            "launcherRecoveryStatus" => crate::updates::recovery_status(&self.store),
+            "launcherBackup" => self.operation(||crate::updates::backup_current(&self.store)),
+            "launcherRecover" => self.operation(||crate::updates::open_recovery(&self.store)),
+            "launcherRecoveryFolder" => crate::updates::recovery_folder(&self.store),
+            "migrationImport" => self.operation(|| {let result=crate::migration::import(&self.store,&self.migration.lock().unwrap(),&arg(0))?;*self.migration.lock().unwrap()=Value::Null;Ok(result)}),
+            "projectVersions" => content::versions(&self.net,&id,arg(1).as_str().unwrap_or(""),arg(2).as_str().unwrap_or(""),arg(3).as_str().unwrap_or("mod")),
+            "projectDetails" => {
+                leaf(&id)?;
+                self.net.json(&format!("https://api.modrinth.com/v2/project/{id}"))
+            },
+            "preflight" => crate::safety::preflight(&self.store,&self.store.get(&id)?),
+            "changeHistory" => crate::safety::history(&self.store.dir(&id)?),
+            "downloads" => Ok(self.net.1.status()),
+            "downloadControl" => self.net.1.control(&id, arg(1).as_str().unwrap_or("")),
+            "clearDownloads" => {self.net.1.clear();Ok(Value::Null)},
             "getDb" => Ok(self.store.public()),
             "setDb" => {
                 self.store.merge(arg(0), &arg(1))?;
@@ -81,16 +128,26 @@ impl Backend {
             "aiKeyHelp" => { open::that("https://aistudio.google.com/app/apikey")?; Ok(Value::Null) },
             "systemInfo" => Ok(crate::hardware::info()),
             "recoveryPlan" => {let inst=self.store.get(&id)?;if s(&inst,"loader")=="Rust" {return Ok(json!({"supported":false,"mods":[]}));}crate::recovery::plan(&self.store.dir(&id)?)},
-            "recoveryApply" => self.operation(||crate::recovery::apply(&self.store.dir(&id)?,&arg(1))),
-            "recoveryUndo" => self.operation(||crate::recovery::undo(&self.store.dir(&id)?)),
+            "recoveryApply" => self.mutate(&id, "Безопасный запуск", true, ||crate::recovery::apply(&self.store.dir(&id)?,&arg(1))),
+            "recoveryUndo" => self.mutate(&id, "Возврат отключённых модов", true, ||crate::recovery::undo(&self.store.dir(&id)?)),
             "aiStatus" => Ok(crate::ai::status(&self.store)),
             "aiConfigure" => crate::ai::configure(&self.store, &self.net, &arg(0)),
+            "performancePlan" => {
+                let plan=crate::ai::performance_plan(&self.store,&self.net,&id)?;
+                self.ai_plans.lock().unwrap()[&id]=plan.clone();Ok(plan)
+            },
+            "sharePreview" => {
+                let inst=self.store.get(&id)?;let root=self.store.dir(&id)?;
+                let checks=crate::compatibility::check(&root,&self.net,&inst,false)?;
+                let files=crate::safety::inventory(&root)?;
+                Ok(json!({"name":s(&inst,"name"),"version":s(&inst,"version"),"loader":s(&inst,"loader"),"files":files.as_object().map(|m|m.len()).unwrap_or(0),"compatibility":checks}))
+            },
             "aiPlan" => {
                 let plan=crate::ai::plan_with_options(&self.store,&self.net,&id,arg(1).as_str().unwrap_or(""),&arg(2))?;
                 self.ai_plans.lock().unwrap()[&id]=plan.clone();
                 Ok(plan)
             },
-            "aiInstall" => self.operation(|| {
+            "aiInstall" => self.mutate(&id, "Установка ИИ-сборки", true, || {
                 let plan=self.ai_plans.lock().unwrap()[&id].clone();
                 crate::ai::install(&self.store,&self.net,&plan,&self.store.get(&id)?,arg(1).as_str().unwrap_or(""),&arg(2),&log)
             }),
@@ -105,12 +162,13 @@ impl Backend {
                     .collect::<Vec<_>>()))
             }
             "contentFiles" => content::files(&self.store.dir(&id)?, arg(1).as_str().unwrap_or("")),
-            "toggle" => self.operation(|| {
+            "toggle" => self.mutate(&id, "Включение / выключение мода", true, || {
                 content::toggle(&self.store.dir(&id)?, "mod", arg(1).as_str().unwrap_or(""))
             }),
-            "install" => self.operation(|| {
+            "install" => {
                 let options = arg(0);
                 let inst = self.store.get(s(&options["inst"], "id"))?;
+                self.mutate(s(&inst,"id"), "Установка контента", true, || {
                 Ok(json!(content::install(
                     &self.store,
                     &self.net,
@@ -119,7 +177,7 @@ impl Backend {
                     s(&options, "type"),
                     &log
                 )?))
-            }),
+            })},
             "pack" => self.operation(|| {
                 let o = arg(0);
                 content::install_pack(
@@ -144,7 +202,7 @@ impl Backend {
             "checkUpdates" => {
                 content::updates(&self.store.dir(&id)?, &self.net, &self.store.get(&id)?)
             }
-            "updateMods" => self.operation(|| {
+            "updateMods" => self.mutate(&id, "Обновление модов", true, || {
                 content::apply_updates(
                     &self.store.dir(&id)?,
                     &self.net,
@@ -153,7 +211,7 @@ impl Backend {
                     &log,
                 )
             }),
-            "manageContent" => self.operation(|| {
+            "manageContent" => self.mutate(&id, "Изменение контента", true, || {
                 content::manage(
                     &self.store.dir(&id)?,
                     &self.net,
@@ -171,25 +229,25 @@ impl Backend {
                 arg(1).as_bool().unwrap_or(true),
             ),
             "backups" => backups::list_backups(&self.store.dir(&id)?, "mods"),
-            "rollback" => self.operation(|| {
+            "rollback" => self.mutate(&id, "Откат сборки", true, || {
                 backups::restore(&self.store.dir(&id)?, "mods", arg(1).as_str().unwrap_or(""))
             }),
             "worldBackups" => backups::list_backups(&self.store.dir(&id)?, "worlds"),
             "backupWorlds" => self.operation(|| {
                 backups::snapshot(&self.store.dir(&id)?, "worlds", "Ручная копия миров")
             }),
-            "restoreWorlds" => self.operation(|| {
+            "restoreWorlds" => self.mutate(&id, "Восстановление миров", false, || {
                 backups::restore(
                     &self.store.dir(&id)?,
                     "worlds",
                     arg(1).as_str().unwrap_or(""),
                 )
             }),
-            "removeMod" => self.operation(|| {
+            "removeMod" => self.mutate(&id, "Удаление мода", true, || {
                 backups::remove_mod(&self.store.dir(&id)?, arg(1).as_str().unwrap_or(""))
             }),
             "removedMods" => backups::removed(&self.store.dir(&id)?),
-            "restoreRemoved" => self.operation(|| {
+            "restoreRemoved" => self.mutate(&id, "Возврат удалённого мода", true, || {
                 backups::restore_removed(&self.store.dir(&id)?, arg(1).as_str().unwrap_or(""))
             }),
             "duplicateInstance" => self.operation(|| self.store.duplicate(&id)),
@@ -302,6 +360,7 @@ impl Backend {
                 if self.busy.load(Ordering::SeqCst) {
                     bail!("Закройте игру");
                 }
+                updates::backup_current(&self.store)?;
                 updates::install(&self.update.lock().unwrap())?;
                 Ok(Value::Null)
             }
@@ -334,6 +393,7 @@ impl Backend {
                 if self.busy.swap(true, Ordering::SeqCst) {
                     bail!("Игра или операция уже запущена");
                 }
+                self.net.1.reset();
                 let backend = self.clone();
                 std::thread::spawn(move || {
                     let started = chrono::Utc::now();
@@ -344,7 +404,8 @@ impl Backend {
                         backend.presence.update("playing", &inst);
                         backend.emit("game:started", json!([s(&inst, "id")]));
                     };
-                    let result = if s(&inst, "loader") == "Rust" {
+                    let protected = crate::safety::auto_worlds(&backend.store,s(&inst,"id"),false);
+                    let result = if let Err(error)=protected {Err(error)} else if s(&inst, "loader") == "Rust" {
                         horizon::play(
                             &backend.store,
                             &backend.net,

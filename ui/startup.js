@@ -11,7 +11,7 @@
   overlay.querySelector('.startup-tag').textContent=first?'ДОБРО ПОЖАЛОВАТЬ':'MINECRAFT LAUNCHER';
   const button=overlay.querySelector('button');button.textContent='Пропустить';button.onclick=()=>finishCurrent?.();button.focus({preventScroll:true});
   // Restart the CSS sequence when previewing the first opening from Settings.
-  const animate=(enabled||force)&&motion(),hold=animate?(first?3200:820):first?260:0;
+  const animate=(enabled||force)&&document.documentElement.dataset.lowPower!=='true'&&document.documentElement.dataset.reduceMotion!=='true'&&motion(),hold=animate?(first?3200:820):first?260:0;
   void overlay.offsetWidth;if(animate)overlay.classList.add('is-playing');
   return new Promise(resolve=>{
    let finished=false,cleaned=false,revealTimer;const timer=setTimeout(finish,hold);

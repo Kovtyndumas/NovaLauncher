@@ -24,12 +24,29 @@ pub fn app_data(name: &str) -> PathBuf {
 impl Store {
     pub fn new(root: PathBuf) -> Result<Self> {
         fs::create_dir_all(&root)?;
-        let db = if root.join("db.json").exists() {
-            read_json(&root.join("db.json"))?
+        let primary = root.join("db.json");
+        let backup = root.join("db.backup.json");
+        let load = |path: &Path| -> Result<Value> {
+            let value = read_json(path)?;
+            validate(&value)?;
+            Ok(value)
+        };
+        let db = if primary.exists() || backup.exists() {
+            match load(&primary) {
+                Ok(value) => value,
+                Err(primary_error) => {
+                    let recovered = load(&backup).map_err(|_| primary_error)?;
+                    // Keep the damaged file for diagnosis before repairing the primary.
+                    if primary.exists() {
+                        fs::copy(&primary, root.join(format!("db.corrupt-{}.json", uuid::Uuid::new_v4())))?;
+                    }
+                    write_json(&primary, &recovered)?;
+                    recovered
+                }
+            }
         } else {
             json!({"instances":[],"servers":[],"settings":{"name":"Steve","ram":4,"theme":"black","snow":false}})
         };
-        validate(&db)?;
         Ok(Self {
             root,
             db: Mutex::new(db),
@@ -48,6 +65,7 @@ impl Store {
     pub fn settings(&self) -> Value {
         self.db()["settings"].clone()
     }
+    pub fn game_settings(&self,inst:&Value)->Value {crate::profiles::effective(&self.settings(),inst)}
     pub fn edit<F>(&self, f: F) -> Result<Value>
     where
         F: FnOnce(&mut Value) -> Result<()>,
@@ -56,6 +74,8 @@ impl Store {
         let mut next = db.clone();
         f(&mut next)?;
         validate(&next)?;
+        // Keep the previous committed state before replacing the primary database.
+        write_json(&self.root.join("db.backup.json"), &db)?;
         write_json(&self.root.join("db.json"), &next)?;
         *db = next;
         Ok(db.clone())
@@ -142,6 +162,7 @@ impl Store {
     pub fn duplicate(&self, id: &str) -> Result<Value> {
         let mut i = self.get(id)?;
         let source = self.dir(id)?;
+        i.as_object_mut().unwrap().remove("trial");
         i["id"] = json!(uuid::Uuid::new_v4().to_string());
         i["name"] = json!(format!("{} — копия", s(&i, "name")));
         let target = self.root.join("instances").join(s(&i, "id"));
@@ -150,6 +171,10 @@ impl Store {
             &target,
             &[
                 "backups",
+                ".nova-downloads",
+                ".nova-working-points.json",
+                ".nova-changes.json",
+                ".nova-recovery.json",
                 ".nova-backups",
                 "libraries",
                 "assets",
@@ -239,6 +264,7 @@ pub fn validate(db: &Value) -> Result<()> {
     }
     let mut ids = std::collections::HashSet::new();
     for i in items {
+        if !i["launchSettings"].is_null(){crate::profiles::clean(&i["launchSettings"])?;}
         let id = s(i, "id");
         if id.is_empty()
             || !id

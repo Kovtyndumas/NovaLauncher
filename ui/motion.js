@@ -2,7 +2,7 @@
 window.NovaMotion=class{
   constructor(){
     this.active=null;this.frameId=null;this.pointer=null;
-    const reduced=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const reduced=()=>document.documentElement.dataset.lowPower==='true'||document.documentElement.dataset.reduceMotion==='true'||matchMedia('(prefers-reduced-motion: reduce)').matches;
     document.addEventListener('pointerover',e=>{
       if(reduced()||e.pointerType==='touch')return;
       const element=e.target.closest('.st,.card,.theme-choice,.acts .play');
