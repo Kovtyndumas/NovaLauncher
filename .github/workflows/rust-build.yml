@@ -127,7 +127,7 @@ jobs:
           for platform in Path('artifacts').iterdir():
               files=[p for p in platform.rglob('*') if p.is_file() and p.suffix in {'.dmg','.exe','.AppImage','.deb'}]
               assert files, 'Missing installer: '+platform.name
-              for file in files: shutil.copy2(file,out/(platform.name+'-'+file.name))
+              for file in files: shutil.copy2(file,out/(platform.name+'-'+file.name.replace(' ','.')))
           names=[p.name for p in out.iterdir()]
           for platform in ['macOS-ARM64','macOS-Intel','Windows-x64','Linux-x64']: assert any(platform in n for n in names), 'Missing '+platform
           (out/'SHA256SUMS.txt').write_text(''.join(hashlib.sha256(p.read_bytes()).hexdigest()+'  '+p.name+'\n' for p in sorted(out.iterdir())))
