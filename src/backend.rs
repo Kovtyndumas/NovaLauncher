@@ -79,10 +79,14 @@ impl Backend {
             "versions" => minecraft::versions(&self.store, &self.net),
             "history" => self.history(),
             "aiKeyHelp" => { open::that("https://aistudio.google.com/app/apikey")?; Ok(Value::Null) },
+            "systemInfo" => Ok(crate::hardware::info()),
+            "recoveryPlan" => {let inst=self.store.get(&id)?;if s(&inst,"loader")=="Rust" {return Ok(json!({"supported":false,"mods":[]}));}crate::recovery::plan(&self.store.dir(&id)?)},
+            "recoveryApply" => self.operation(||crate::recovery::apply(&self.store.dir(&id)?,&arg(1))),
+            "recoveryUndo" => self.operation(||crate::recovery::undo(&self.store.dir(&id)?)),
             "aiStatus" => Ok(crate::ai::status(&self.store)),
             "aiConfigure" => crate::ai::configure(&self.store, &self.net, &arg(0)),
             "aiPlan" => {
-                let plan=crate::ai::plan(&self.store,&self.net,&id,arg(1).as_str().unwrap_or(""))?;
+                let plan=crate::ai::plan_with_options(&self.store,&self.net,&id,arg(1).as_str().unwrap_or(""),&arg(2))?;
                 self.ai_plans.lock().unwrap()[&id]=plan.clone();
                 Ok(plan)
             },
@@ -382,6 +386,7 @@ impl Backend {
                             (-1, report(&e.to_string(), -1, s(&inst, "id")))
                         }
                     };
+                    if code==0 && s(&inst,"loader")!="Rust" {if let Ok(root)=backend.store.dir(s(&inst,"id")){let _=crate::recovery::mark_good(&root);}}
                     backend.busy.store(false, Ordering::SeqCst);
                     backend.presence.update("launcher", &inst);
                     let _ = backend.record(&inst, started, code);

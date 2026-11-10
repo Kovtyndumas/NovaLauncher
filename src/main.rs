@@ -5,6 +5,9 @@ mod backend;
 mod backups;
 mod compatibility;
 mod content;
+mod design;
+mod hardware;
+mod recovery;
 mod horizon;
 mod minecraft;
 mod net;
@@ -111,6 +114,9 @@ async fn dispatch(
     let ui_method = method.clone();
     let app2 = app.clone();
     tauri::async_runtime::spawn_blocking(move||->Result<Value>{
+ if method=="chooseWallpaper"{return match rfd::FileDialog::new().set_title("Свои обои").add_filter("Изображение",&["png","jpg","jpeg","webp"]).pick_file(){Some(path)=>crate::design::wallpaper(&path),None=>Ok(Value::Null)};}
+ if method=="importDesign"{return match rfd::FileDialog::new().set_title("Импорт оформления Nova").add_filter("Оформление Nova",&["json"]).pick_file(){Some(path)=>crate::design::import(&path),None=>Ok(Value::Null)};}
+ if method=="exportDesign"{return match rfd::FileDialog::new().set_file_name("My-Nova.nova-theme.json").add_filter("Оформление Nova",&["json"]).save_file(){Some(path)=>crate::design::export(&path,args.first().unwrap_or(&Value::Null)),None=>Ok(Value::Null)};}
  if method=="importPack"&&args.first().is_none_or(Value::is_null){let Some(path)=rfd::FileDialog::new().set_title("Импорт Modrinth").add_filter("Modrinth",&["mrpack"]).pick_file()else{return Ok(Value::Null)};args=vec![json!(path)];}
  if method=="exportPack"{let id=args.first().and_then(Value::as_str).unwrap_or("");let inst=backend.store.get(id)?;let Some(path)=rfd::FileDialog::new().set_file_name(format!("{}.mrpack",s(&inst,"name"))).add_filter("Modrinth",&["mrpack"]).save_file()else{return Ok(Value::Null)};args.push(json!(path));}
  if method=="deleteInstance"{let answer=rfd::MessageDialog::new().set_title("Удалить сборку?").set_description("Файлы и миры сохранятся в deleted-instances. Восстановить их можно из папки данных Nova Rust.").set_buttons(rfd::MessageButtons::OkCancel).show();if answer!=rfd::MessageDialogResult::Ok{return Ok(Value::Null);}}
@@ -233,7 +239,7 @@ fn run() -> Result<()> {
     if std::env::args().any(|a| a == "--test-game") {
         return game_probe(root);
     }
-    let app=tauri::Builder::default().invoke_handler(tauri::generate_handler![dispatch]).setup(move|app|{let handle=app.handle().clone();let events=Arc::new(move|event:&str,args:Value|{let _=handle.emit(event,args);});let backend=Backend::new(root.clone(),events)?;if smoke(){backend.store.edit(|db|{db["instances"]=json!([{"id":"smoke","name":"Мой мир","version":"1.21.1","loader":"Fabric"}]);db["settings"]["onboarded"]=json!(true);db["settings"]["startupAnimations"]=json!(false);db["settings"]["discordPresence"]=json!(false);db["settings"]["autoUpdate"]=json!(false);Ok(())})?;backend.presence.configure(&backend.store.settings());let watchdog=app.handle().clone();std::thread::spawn(move||{std::thread::sleep(std::time::Duration::from_secs(45));eprintln!("NOVA_RUST_UI_TIMEOUT");watchdog.exit(1);});}else{let service=backend.clone();std::thread::spawn(move||{std::thread::sleep(std::time::Duration::from_secs(12));loop{if flag(&service.store.settings(),"autoUpdate",true){let _=service.call("launcherCheck",&[]);}std::thread::sleep(std::time::Duration::from_secs(14400));}});}app.manage(backend);Ok(())}).build(tauri::generate_context!())?;
+    let app=tauri::Builder::default().invoke_handler(tauri::generate_handler![dispatch]).setup(move|app|{let handle=app.handle().clone();let events=Arc::new(move|event:&str,args:Value|{let _=handle.emit(event,args);});let backend=Backend::new(root.clone(),events)?;if smoke(){backend.store.edit(|db|{db["instances"]=json!([{"id":"smoke","name":"Мой мир","version":"1.21.1","loader":"Fabric"}]);db["settings"]["onboarded"]=json!(true);db["settings"]["startupAnimations"]=json!(false);db["settings"]["discordPresence"]=json!(false);db["settings"]["autoUpdate"]=json!(false);Ok(())})?;backend.presence.configure(&backend.store.settings());if let Some(w)=app.get_webview_window("main"){let _=w.show();let _=w.set_focus();}let watchdog=app.handle().clone();std::thread::spawn(move||{std::thread::sleep(std::time::Duration::from_secs(45));eprintln!("NOVA_RUST_UI_TIMEOUT");watchdog.exit(1);});}else{let service=backend.clone();std::thread::spawn(move||{std::thread::sleep(std::time::Duration::from_secs(12));loop{if flag(&service.store.settings(),"autoUpdate",true){let _=service.call("launcherCheck",&[]);}std::thread::sleep(std::time::Duration::from_secs(14400));}});}app.manage(backend);Ok(())}).build(tauri::generate_context!())?;
     app.run(|_, _| {});
     Ok(())
 }

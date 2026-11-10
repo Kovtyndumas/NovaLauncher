@@ -6,14 +6,14 @@ const moduleCatalog={
  actions:{name:'Быстрый запуск',description:'Большая кнопка «Играть» и управление сборкой.',size:{w:7,h:2},icon:'actions'},
  character:{name:'Персонаж',description:'Твой скин, движения и реакции на курсор.',size:{w:5,h:8},icon:'character'},
  stats:{name:'Статистика',description:'Minecraft, загрузчик, моды и версия Java.',size:{w:7,h:3},icon:'stats'},
- favorite:{name:'Избранный сервер',description:'Быстрый вход на первый избранный сервер.',size:{w:6,h:3},icon:'favorite'},
+ favorite:{name:'Избранный сервер',description:'Быстрый вход на выбранный сервер.',size:{w:6,h:3},icon:'favorite'},
  history:{name:'Недавние игры',description:'Последние запуски и проведённое в игре время.',size:{w:6,h:3},icon:'history'},
  quick:{name:'Быстрые действия',description:'Миры, папка, копия сборки и каталог модов.',size:{w:6,h:3},icon:'quick'},
  memory:{name:'Память сборки',description:'Выделенная RAM Java-сборок прямо на главном экране.',size:{w:6,h:3},icon:'memory'}
 };
 function cleanModules(value){const result={};for(const key of Object.keys(moduleCatalog))result[key]=typeof value?.[key]==='boolean'?value[key]:['info','actions','stats','character'].includes(key);return result;}
 function moduleHeading(key){const item=moduleCatalog[key];return `<div class="widget-heading"><span class="widget-symbol">${moduleIcon(item.icon)}</span><span>${item.name}</span></div>`;}
-function renderExtraModules(){const server=S.db.servers.find(item=>item.favorite),recent=S.history.slice(0,2);return `
+function renderExtraModules(){const chosen=appearanceValue().moduleSettings.favorite.serverHost,server=(chosen?S.db.servers.find(item=>item.host===chosen):null)||S.db.servers.find(item=>item.favorite),recent=S.history.slice(0,2);return `
  <article class="home-widget" data-layout-block="favorite">${moduleHeading('favorite')}${server?`<h3>${esc(server.name||server.host)}</h3><p>${esc(server.host)}</p><button class="b widget-link" data-join="${esc(server.host)}" ${S.playing?'disabled':''}>Подключиться ↗</button>`:'<h3>Вместе интереснее</h3><p>Добавь сервер в избранное — он появится здесь.</p><button class="b widget-link" data-tab="servers">Выбрать сервер ↗</button>'}</article>
  <article class="home-widget" data-layout-block="history">${moduleHeading('history')}<div class="widget-recent">${recent.map(item=>`<div><b>${esc(item.name)}</b><span>${esc(item.version)} · ${duration(item.seconds||0)}</span></div>`).join('')||'<p>История появится после первой игры.</p>'}</div><button class="b widget-link" data-tab="history">Вся история ↗</button></article>
  <article class="home-widget" data-layout-block="quick">${moduleHeading('quick')}<div class="widget-actions">${[['worlds','Миры'],['dir','Папка'],['duplicate','Копия'],['managemods','Моды']].map(([key,label])=>`<button class="b" data-act="${key}">${label}</button>`).join('')}</div></article>

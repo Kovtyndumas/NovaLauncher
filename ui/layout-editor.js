@@ -8,7 +8,7 @@ function settleLayout(source,first){const result=cleanLayout(source),placed=[];c
 function applyLayout(){
  const hero=document.querySelector('.hero2'),layout=appearanceValue().layout;
  document.documentElement.dataset.customLayout=layout||layoutEditing||Object.keys(moduleCatalog).some(key=>layoutVisible(key)!==['info','actions','stats','character'].includes(key))?'true':'false';
- if(!hero)return;
+ if(!hero)return;applyDesign();
  const positions=settleLayout(layout||layoutDefaults);
  const empty=hero.querySelector('.module-empty');if(!Object.keys(moduleCatalog).some(layoutVisible)){if(!empty){const placeholder=document.createElement('div');placeholder.className='module-empty';placeholder.innerHTML='<h2>Твой экран Nova</h2><p>Выбери модули, которые нужны тебе.</p><button class="b" data-act="editmodules">Добавить модули</button>';hero.append(placeholder);}}else empty?.remove();
  for(const element of hero.querySelectorAll('[data-layout-block]')){
@@ -18,7 +18,7 @@ function applyLayout(){
   if(layoutEditing&&layoutVisible(key)&&!element.querySelector('.layout-grab')){
    const grab=document.createElement('button');grab.className='layout-grab';grab.type='button';grab.dataset.layoutHandle=key;grab.textContent=layoutNames[key];grab.setAttribute('aria-label','Переместить: '+layoutNames[key]);grab.title='Перетащи или используй стрелки. Shift + стрелки — размер.';
    const resize=document.createElement('button');resize.className='layout-resize';resize.type='button';resize.dataset.layoutHandle=key;resize.dataset.resize='true';resize.innerHTML='<span></span>';resize.setAttribute('aria-label','Размер: '+layoutNames[key]);
-   const remove=document.createElement('button');remove.className='layout-remove';remove.type='button';remove.textContent='−';remove.setAttribute('aria-label','Убрать модуль: '+layoutNames[key]);remove.onclick=()=>setModuleEnabled(key,false);element.append(grab,resize,remove);for(const handle of [grab,resize]){handle.addEventListener('pointerdown',startLayoutDrag);handle.addEventListener('pointermove',moveLayoutDrag);handle.addEventListener('pointerup',finishLayoutDrag);handle.addEventListener('pointercancel',cancelLayoutDrag);handle.addEventListener('lostpointercapture',finishLayoutDrag);handle.addEventListener('keydown',layoutKey);}
+   const remove=document.createElement('button');remove.className='layout-remove';remove.type='button';remove.textContent='−';remove.setAttribute('aria-label','Убрать модуль: '+layoutNames[key]);remove.onclick=()=>setModuleEnabled(key,false);const config=document.createElement('button');config.className='layout-config';config.textContent='⚙';config.setAttribute('aria-label','Настроить: '+layoutNames[key]);config.onclick=()=>openModuleSettings(key);element.append(grab,resize,remove,config);for(const handle of [grab,resize]){handle.addEventListener('pointerdown',startLayoutDrag);handle.addEventListener('pointermove',moveLayoutDrag);handle.addEventListener('pointerup',finishLayoutDrag);handle.addEventListener('pointercancel',cancelLayoutDrag);handle.addEventListener('lostpointercapture',finishLayoutDrag);handle.addEventListener('keydown',layoutKey);}
   }
  }
 }
