@@ -9,7 +9,7 @@ html[data-layout-editing=true] #view{padding-top:100px;padding-bottom:30px;overf
 
 .module-gallery,.module-gallery button,.module-gallery input,.layout-dock,.layout-dock button{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.module-gallery h2{font-weight:700;font-size:28px}.layout-add,.layout-done{font-size:13px;font-weight:600}.layout-editor-title{font-size:12px}.module-choice-copy b{font-size:14px;font-weight:600}.module-choice-copy>span{font-size:12px}.gallery-sizes button{font-size:12px}.module-choice small{font-size:11px}
 
-.module-gallery::-webkit-scrollbar{width:5px}.module-gallery::-webkit-scrollbar-thumb{background:var(--fill);border-radius:8px}.module-gallery::-webkit-scrollbar-track{background:transparent}
+
 
 html[data-layout-editing=true] .hero2>.hr{overflow:visible}html[data-layout-editing=true] .hr .hint{visibility:hidden;height:0;margin:0}html[data-layout-editing=true] aside{opacity:.55}html[data-layout-editing=true] nav .seg{opacity:.6}
 html[data-custom-layout=true] .home-actions{padding:16px}html[data-custom-layout=true] .home-actions[data-widget-compact=true]>.bar,html[data-custom-layout=true] .home-actions[data-widget-compact=true]>.log,html[data-custom-layout=true] .home-actions[data-widget-compact=true]>.tool-status{display:none}
