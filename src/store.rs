@@ -31,7 +31,7 @@ impl Store {
             validate(&value)?;
             Ok(value)
         };
-        let db = if primary.exists() || backup.exists() {
+        let mut db = if primary.exists() || backup.exists() {
             match load(&primary) {
                 Ok(value) => value,
                 Err(primary_error) => {
@@ -47,6 +47,13 @@ impl Store {
         } else {
             json!({"instances":[],"servers":[],"settings":{"name":"Steve","ram":4,"theme":"black","snow":false}})
         };
+        let before=db.clone();
+        let history=read_json(&root.join("play-history.json")).ok();
+        crate::navigation::normalize(&mut db,history.as_ref())?;
+        if db!=before {
+            if primary.exists(){write_json(&backup,&before)?;}
+            write_json(&primary,&db)?;
+        }
         Ok(Self {
             root,
             db: Mutex::new(db),
@@ -74,6 +81,7 @@ impl Store {
         let mut next = db.clone();
         f(&mut next)?;
         validate(&next)?;
+        crate::navigation::normalize(&mut next,None)?;
         // Keep the previous committed state before replacing the primary database.
         write_json(&self.root.join("db.backup.json"), &db)?;
         write_json(&self.root.join("db.json"), &next)?;
@@ -237,8 +245,11 @@ impl Store {
             count += 1;
         }
         self.edit(|current| {
-            if list(current, "servers").is_empty() {
-                current["servers"] = db.get("servers").cloned().unwrap_or(json!([]));
+            for server in list(&db,"servers") {
+                let host=s(server,"host");
+                if !host.is_empty() && !list(current,"servers").iter().any(|existing|s(existing,"host").eq_ignore_ascii_case(host)||(crate::navigation::is_rageland(s(existing,"host"))&&crate::navigation::is_rageland(host))) {
+                    current["servers"].as_array_mut().unwrap().push(server.clone());
+                }
             }
             if fresh {
                 for (k, v) in db["settings"].as_object().unwrap() {

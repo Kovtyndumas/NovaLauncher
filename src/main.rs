@@ -14,6 +14,7 @@ mod horizon;
 mod minecraft;
 mod migration;
 mod net;
+mod navigation;
 mod presence;
 mod profiles;
 mod checkpoints;

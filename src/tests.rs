@@ -500,3 +500,25 @@ fn launch_profile_api_never_returns_account_credentials() {
     backend.store.edit(|db|{db["settings"]["msRefresh"]=json!("PRIVATE-REFRESH");db["settings"]["name"]=json!("PrivateName");Ok(())}).unwrap();
     let profile=backend.call("instanceSettings",&[json!("profile")]).unwrap();assert!(!profile.to_string().contains("PRIVATE-REFRESH"));assert!(!profile.to_string().contains("PrivateName"));
 }
+
+#[test]
+fn selected_instance_survives_restart_and_migrates_from_history() {
+    let (temp,store,_) = fixture();store.add(json!({"id":"played","name":"Played","version":"1.21.1","loader":"Vanilla"})).unwrap();
+    store.edit(|db|{db["settings"]["selectedInstance"]=json!("played");Ok(())}).unwrap();drop(store);
+    let reopened=store::Store::new(temp.path().into()).unwrap();assert_eq!(reopened.settings()["selectedInstance"],"played");
+    let mut legacy=reopened.db();legacy["settings"].as_object_mut().unwrap().remove("selectedInstance");drop(reopened);
+    util::write_json(&temp.path().join("db.json"),&legacy).unwrap();util::write_json(&temp.path().join("play-history.json"),&json!([{"instanceId":"played"}])).unwrap();
+    assert_eq!(store::Store::new(temp.path().into()).unwrap().settings()["selectedInstance"],"played");
+}
+#[test]
+fn builtin_server_survives_merge_without_losing_personal_servers() {
+    let (_temp,store,_) = fixture();store.edit(|db|{db["servers"].as_array_mut().unwrap().push(json!({"name":"Personal","host":"my.example"}));Ok(())}).unwrap();
+    let base=store.public();let mut next=base.clone();next["servers"].as_array_mut().unwrap().retain(|server|!navigation::is_rageland(s(server,"host")));store.merge(next,&base).unwrap();
+    let servers=store.public()["servers"].as_array().unwrap().clone();assert_eq!(servers.len(),2);assert!(servers.iter().any(|v|s(v,"host")=="my.example"));assert_eq!(servers.iter().filter(|v|navigation::is_rageland(s(v,"host"))).count(),1);
+}
+#[test]
+fn legacy_import_merges_personal_servers_with_builtin_server() {
+    let (_temp,source,_) = fixture();source.edit(|db|{db["servers"].as_array_mut().unwrap().push(json!({"name":"Personal","host":"my.example"}));Ok(())}).unwrap();
+    let target_root=tempfile::tempdir().unwrap();let target=store::Store::new(target_root.path().into()).unwrap();target.import(&source.root).unwrap();
+    assert!(list(&target.public(),"servers").iter().any(|v|s(v,"host")=="my.example"));assert_eq!(list(&target.public(),"servers").iter().filter(|v|navigation::is_rageland(s(v,"host"))).count(),1);
+}

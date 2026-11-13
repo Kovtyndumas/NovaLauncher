@@ -451,7 +451,7 @@ impl Backend {
                     backend.busy.store(false, Ordering::SeqCst);
                     backend.presence.update("launcher", &inst);
                     let _ = backend.record(&inst, started, code);
-                    backend.emit("game:closed", json!([code, crash]));
+                    backend.emit("game:closed", json!([code, crash, s(&inst,"id")]));
                 });
                 Ok(json!(true))
             }
