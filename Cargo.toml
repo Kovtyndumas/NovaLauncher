@@ -1,10 +1,11 @@
 [package]
 name = "nova-rust"
-version = "3.0.0-beta.14"
+version = "3.0.0-beta.19"
 edition = "2021"
 rust-version = "1.99"
 authors = ["Ktvx"]
 description = "Nova Minecraft Launcher — Rust edition"
+license-file = "LICENSE"
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]

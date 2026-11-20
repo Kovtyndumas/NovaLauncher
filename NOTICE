@@ -1,0 +1,26 @@
+Nova Launcher
+Copyright (c) 2026 Ktvx (Kovtyndumas). All rights reserved.
+
+Original Nova Launcher materials are governed by LICENSE.
+The preserved Millida sources and legacy components are excluded from that
+proprietary grant and retain their GPL licenses; the current application uses
+original Nova animations instead.
+Third-party components retain their original licenses and attribution notices.
+
+Bundled font and animation notices:
+- ui/vendor/UNBOUNDED-LICENSE
+- ui/vendor/MONOCRAFT-LICENSE
+- ui/vendor/SKINVIEW3D-LICENSE
+- ui/vendor/SKINVIEW-UTILS-LICENSE
+- ui/vendor/THREE-LICENSE
+- Corresponding legacy/electron/vendor notices for legacy components
+
+The skin preview uses skinview3d and its bundled dependencies.
+Upstream: https://github.com/bs-community/skinview3d
+The Rust application uses Tauri and the dependencies listed in Cargo.lock.
+Their respective upstream license terms continue to apply.
+
+Minecraft and Microsoft names belong to their respective owners.
+Nova Launcher is not an official Minecraft product and is not approved by or
+associated with Mojang or Microsoft. Apple platform materials are provided by
+macOS; Apple does not endorse this project.

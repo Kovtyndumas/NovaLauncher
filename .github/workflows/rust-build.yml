@@ -131,13 +131,13 @@ jobs:
           names=[p.name for p in out.iterdir()]
           for platform in ['macOS-ARM64','macOS-Intel','Windows-x64','Linux-x64']: assert any(platform in n for n in names), 'Missing '+platform
           (out/'SHA256SUMS.txt').write_text(''.join(hashlib.sha256(p.read_bytes()).hexdigest()+'  '+p.name+'\n' for p in sorted(out.iterdir())))
-      - name: Publish complete Rust beta
+      - name: Publish current Rust release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           TAG: ${{ github.ref_name }}
         shell: bash
         run: |
-          gh release create "$TAG" --verify-tag --draft --prerelease --title "Nova Rust ${TAG#rust-v}" --notes-file RELEASE_NOTES.md
+          gh release create "$TAG" --verify-tag --draft --title "Nova Rust ${TAG#rust-v}" --notes-file RELEASE_NOTES.md
           gh release upload "$TAG" installers/*
-          gh release edit "$TAG" --draft=false
+          gh release edit "$TAG" --draft=false --latest

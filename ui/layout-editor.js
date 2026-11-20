@@ -1,19 +1,21 @@
 const layoutDefaults={info:{x:0,y:0,w:7,h:3},actions:{x:0,y:3,w:7,h:2},stats:{x:0,y:5,w:7,h:3},character:{x:7,y:0,w:5,h:8},favorite:{x:0,y:8,w:6,h:3},history:{x:6,y:8,w:6,h:3},quick:{x:0,y:11,w:6,h:3},memory:{x:6,y:11,w:6,h:3}};
 const layoutNames=Object.fromEntries(Object.entries(moduleCatalog).map(([key,item])=>[key,item.name]));
 let layoutEditing=false,layoutDock=null,layoutHistory=[],layoutDrag=null,layoutPreviousInert=[];
-function cleanLayout(value){const result={};for(const [key,defaults]of Object.entries(layoutDefaults)){const source=value?.[key]||{};const integer=(name,min,max)=>Math.max(min,Math.min(max,Number.isFinite(Number(source[name]))?Math.round(Number(source[name])):defaults[name]));const w=integer('w',key==='character'?3:4,12),h=integer('h',key==='character'?6:2,18);result[key]={x:integer('x',0,12-w),y:integer('y',0,128),w,h};}return result;}
+function cleanLayout(value){const result={};for(const [key,defaults]of Object.entries(layoutDefaults)){const source=value?.[key]||{};const integer=(name,min,max)=>Math.max(min,Math.min(max,Number.isFinite(Number(source[name]))?Math.round(Number(source[name])):defaults[name]));const w=integer('w',key==='character'?3:4,12),h=integer('h',key==='character'?6:key==='info'?3:2,18);result[key]={x:integer('x',0,12-w),y:integer('y',0,128),w,h};}return result;}
 function layoutVisible(key){return appearanceValue().modules[key]===true;}
 function layoutIntersects(a,b){return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;}
 function settleLayout(source,first){const result=cleanLayout(source),placed=[];const keys=Object.keys(result).filter(layoutVisible).sort((a,b)=>a===first?-1:b===first?1:result[a].y-result[b].y);for(const key of keys){const rect=result[key];let overlapping;while((overlapping=placed.find(other=>layoutIntersects(rect,result[other]))))rect.y=result[overlapping].y+result[overlapping].h;placed.push(key);}return result;}
 function applyLayout(){
  const hero=document.querySelector('.hero2'),layout=appearanceValue().layout;
+ document.documentElement.dataset.homeCharacter=String(layoutVisible('character'));document.documentElement.dataset.homeStats=String(layoutVisible('stats'));
+ const studio=!layout&&!layoutEditing&&layoutVisible('info')&&layoutVisible('actions');document.documentElement.dataset.homeLayout=studio?'studio':'widgets';
  document.documentElement.dataset.customLayout=layout||layoutEditing||Object.keys(moduleCatalog).some(key=>layoutVisible(key)!==['info','actions','stats','character'].includes(key))?'true':'false';
  if(!hero)return;applyDesign();
  const positions=settleLayout(layout||layoutDefaults);
  const empty=hero.querySelector('.module-empty');if(!Object.keys(moduleCatalog).some(layoutVisible)){if(!empty){const placeholder=document.createElement('div');placeholder.className='module-empty';placeholder.innerHTML='<h2>Твой экран Nova</h2><p>Выбери модули, которые нужны тебе.</p><button class="b" data-act="editmodules">Добавить модули</button>';hero.append(placeholder);}}else empty?.remove();
  for(const element of hero.querySelectorAll('[data-layout-block]')){
   const key=element.dataset.layoutBlock,position=positions[key];element.dataset.widgetCompact=String(position.h<=2);element.style.display=layoutVisible(key)?'':'none';
-  if(document.documentElement.dataset.customLayout==='true'){element.style.gridColumn=`${position.x+1} / span ${position.w}`;element.style.gridRow=`${position.y+1} / span ${position.h}`;}
+  if(!studio&&document.documentElement.dataset.customLayout==='true'){element.style.gridColumn=`${position.x+1} / span ${position.w}`;element.style.gridRow=`${position.y+1} / span ${position.h}`;}
   else{element.style.removeProperty('grid-column');element.style.removeProperty('grid-row');}
   if(layoutEditing&&layoutVisible(key)&&!element.querySelector('.layout-grab')){
    const grab=document.createElement('button');grab.className='layout-grab';grab.type='button';grab.dataset.layoutHandle=key;grab.textContent=layoutNames[key];grab.setAttribute('aria-label','Переместить: '+layoutNames[key]);grab.title='Перетащи или используй стрелки. Shift + стрелки — размер.';
@@ -21,6 +23,7 @@ function applyLayout(){
    const remove=document.createElement('button');remove.className='layout-remove';remove.type='button';remove.textContent='−';remove.setAttribute('aria-label','Убрать модуль: '+layoutNames[key]);remove.onclick=()=>setModuleEnabled(key,false);const config=document.createElement('button');config.className='layout-config';config.textContent='⚙';config.setAttribute('aria-label','Настроить: '+layoutNames[key]);config.onclick=()=>openModuleSettings(key);element.append(grab,resize,remove,config);for(const handle of [grab,resize]){handle.addEventListener('pointerdown',startLayoutDrag);handle.addEventListener('pointermove',moveLayoutDrag);handle.addEventListener('pointerup',finishLayoutDrag);handle.addEventListener('pointercancel',cancelLayoutDrag);handle.addEventListener('lostpointercapture',finishLayoutDrag);handle.addEventListener('keydown',layoutKey);}
   }
  }
+ requestAnimationFrame(fitInfoWidgets);NovaGlass.refresh();
 }
 function layoutRemember(before){layoutHistory.push(structuredClone(before));if(layoutHistory.length>20)layoutHistory.shift();const undo=layoutDock?.querySelector('[data-layout-action=undo]');if(undo)undo.disabled=false;}
 function startLayoutDrag(event){
@@ -46,7 +49,7 @@ function endLayoutEdit(save=false){
 }
 function startLayoutEdit(){
  if(layoutEditing)return;if(!cur()){toast('Сначала создайте сборку для предпросмотра интерфейса');return;}
- appearanceDraft=appearanceDraft||{...cleanAppearance(S.db.settings.appearance),theme:S.db.settings.theme||'black'};
+ appearanceDraft=appearanceDraft||{...cleanAppearance(S.db.settings.appearance),theme:S.db.settings.theme==='glass'?'light':S.db.settings.theme||'black',glassEffects:S.db.settings.glassEffects??true};
  if(appearanceDraft.layoutVersion!==2)appearanceDraft.layout=structuredClone(layoutDefaults);appearanceDraft.layoutVersion=2;appearanceDraft.modules=cleanModules(appearanceDraft.modules);appearanceDraft.layout=settleLayout(appearanceDraft.layout||layoutDefaults);
  if(appearanceSheet){appearanceSheet.close();appearanceSheet.remove();appearanceSheet=null;}
  layoutEditing=true;layoutHistory=[];S.tab='play';render();document.documentElement.dataset.layoutEditing='true';
@@ -63,7 +66,7 @@ function startLayoutEdit(){
   if(action==='reset'){layoutRemember(appearanceDraft);appearanceDraft.layout=structuredClone(layoutDefaults);appearanceDraft.modules=cleanModules(null);appearanceDraft.character=true;appearanceDraft.stats=true;render();return;}
   if(action==='save'){
    appearanceSaving=true;dock.querySelectorAll('button').forEach(button=>button.disabled=true);const before=structuredClone(S.db.settings);
-   appearanceDraft.layout=settleLayout(appearanceDraft.layout);S.db.settings.appearance=cleanAppearance(appearanceDraft);S.db.settings.theme=appearanceDraft.theme;
+   appearanceDraft.layout=settleLayout(appearanceDraft.layout);S.db.settings.appearance=cleanAppearance(appearanceDraft);S.db.settings.theme=appearanceDraft.theme;S.db.settings.glassEffects=appearanceDraft.glassEffects??S.db.settings.glassEffects??true;
    try{await persist();appearanceSaving=false;endLayoutEdit(true);toast('Расположение сохранено');}
    catch(error){S.db.settings=before;appearanceSaving=false;dock.querySelectorAll('button').forEach(button=>button.disabled=false);dock.querySelector('[role=status]').textContent=error.message;}
   }

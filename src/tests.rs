@@ -254,10 +254,11 @@ fn horizon_always_pins_engine() {
     assert!(horizon::command("delete").is_err());
 }
 #[test]
-fn horizon_shares_account_store_but_keeps_game_homes_separate(){
+fn horizon_shares_saved_account_store_but_keeps_game_homes_separate(){
     let (_temp,store,first)=fixture();
     let cached=store.root.join("horizon-instances").join("old").join("launcher");
     fs::create_dir_all(cached.join("versions").join(horizon::TAG)).unwrap();
+    store.edit(|db|{db["settings"]["horizonLauncherHome"]=json!(cached);Ok(())}).unwrap();
     let a=horizon::process(Path::new("horizon-launcher"),&store,&first).unwrap();
     let b=horizon::process(Path::new("horizon-launcher"),&store,&json!({"id":"second"})).unwrap();
     let env=|cmd:&std::process::Command,key:&str|cmd.get_envs().find(|(name,_)|*name==key).unwrap().1.unwrap().to_owned();
@@ -423,4 +424,49 @@ fn changing_loader_does_not_reuse_old_loader_version() {
         .remove("loaderVersion");
     store.merge(next, &base).unwrap();
     assert!(store.get("test").unwrap()["loaderVersion"].is_null());
+}
+
+#[test]
+fn appearance_order_and_selection_survive_restart_and_unrelated_saves() {
+    let (temp, store, _) = fixture();
+    store.add(json!({"id":"second","name":"Second","version":"1.21.1","loader":"Fabric"})).unwrap();
+    let before=store.public();
+    let mut design=before.clone();
+    design["settings"]["theme"]=json!("glass");
+    design["settings"]["appearance"]=json!({"accent":"#9965e8","radius":24});
+    design["settings"]["selectedInstance"]=json!("second");
+    design["settings"]["instanceOrder"]=json!(["second","test"]);
+    store.merge(design,&before).unwrap();
+    // An unrelated save from an older UI snapshot must preserve the design.
+    let mut other=before.clone();other["settings"]["ram"]=json!(8);
+    store.merge(other,&before).unwrap();
+    drop(store);
+    let reopened=store::Store::new(temp.path().into()).unwrap();
+    let settings=reopened.settings();
+    assert_eq!(settings["theme"],"glass");
+    assert_eq!(settings["appearance"]["accent"],"#9965e8");
+    assert_eq!(settings["selectedInstance"],"second");
+    assert_eq!(settings["instanceOrder"],json!(["second","test"]));
+    assert_eq!(settings["ram"],8);
+}
+
+#[test]
+fn installed_mods_are_scoped_to_instance_and_cannot_be_installed_twice() {
+    let (_temp,store,inst)=fixture();
+    let root=store.dir("test").unwrap();
+    fs::create_dir_all(root.join("mods")).unwrap();
+    fs::write(root.join("mods/example.jar.disabled"),b"existing bytes").unwrap();
+    util::write_json(&root.join(".nova-content.json"),&json!({"mods/example.jar":{"project_id":"example","version_id":"version-one"}})).unwrap();
+    let records=content::files(&root,"mod").unwrap();
+    assert_eq!(records[0]["project"],"example");
+    assert_eq!(records[0]["active"],false);
+    let net=net::Net::new().unwrap();net.1.configure(&json!({"offlineMode":true}));
+    let installed=content::install(&store,&net,&inst,"example","mod",&|_|{}).unwrap();
+    assert_eq!(installed,"example.jar.disabled");
+    assert_eq!(fs::read(root.join("mods/example.jar.disabled")).unwrap(),b"existing bytes");
+    assert_eq!(fs::read_dir(root.join("mods")).unwrap().count(),1);
+    store.add(json!({"id":"other","name":"Other","version":"1.21.1","loader":"Fabric"})).unwrap();
+    assert!(content::files(&store.dir("other").unwrap(),"mod").unwrap().as_array().unwrap().is_empty());
+    fs::remove_file(root.join("mods/example.jar.disabled")).unwrap();
+    assert!(content::files(&root,"mod").unwrap().as_array().unwrap().is_empty());
 }

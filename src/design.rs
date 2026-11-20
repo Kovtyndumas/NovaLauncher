@@ -90,6 +90,7 @@ pub fn clean(value: &Value) -> Result<Value> {
     }
     let theme = match value["theme"].as_str() {
         Some("light") => "light",
+        Some("glass") => "glass",
         Some("graphite") => "graphite",
         _ => "black",
     };
@@ -111,6 +112,12 @@ pub fn export(path: &Path, value: &Value) -> Result<Value> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn glass_theme_survives_design_export_and_import(){
+        let value=json!({"format":"nova-design","version":1,"theme":"glass","appearance":{"accent":"#0a84ff"}});
+        let data=clean(&value).unwrap();assert_eq!(data["theme"],"glass");
+        let temp=tempfile::tempdir().unwrap();let path=temp.path().join("glass.json");export(&path,&data).unwrap();assert_eq!(import(&path).unwrap()["theme"],"glass");
+    }
     #[test]
     fn design_never_exports_credentials_or_hosts() {
         let v=clean(&json!({"format":"nova-design","version":1,"theme":"light","settings":{"msRefresh":"secret"},"appearance":{"accent":"#0a84ff","msRefresh":"secret","moduleSettings":{"favorite":{"serverHost":"private","details":true,"script":"evil"}}}})).unwrap();
