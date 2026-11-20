@@ -65,6 +65,7 @@ jobs:
         shell: pwsh
         run: |
           $app = Start-Process -FilePath '.\target\release\nova-rust.exe' -ArgumentList '--smoke' -PassThru -Wait
+          if (Test-Path 'target/ui-smoke.json') { Get-Content 'target/ui-smoke.json' -Raw | Write-Output }
           if ($app.ExitCode -ne 0) { throw "UI check failed: $($app.ExitCode)" }
           if (-not (Test-Path 'target/ui-smoke.json')) { throw 'No UI test report' }
           if (-not (Get-Content 'target/ui-smoke.json' -Raw | ConvertFrom-Json).ok) { throw 'UI test did not pass' }
