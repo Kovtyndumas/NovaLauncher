@@ -93,7 +93,11 @@ fn exchange(store: &Store, net: &Net, ms: &Value) -> Result<Value> {
 pub fn session(store: &Store, net: &Net) -> Result<Value> {
     let file = store.root.join("account.json");
     if file.exists() {
-        let a = read_json(&file)?;
+        let mut a = read_json(&file)?;
+        if net.1.offline() {
+            if s(&a,"name").is_empty()||s(&a,"uuid").is_empty(){bail!("Сначала войдите в аккаунт с интернетом");}
+            a["token"]=json!("0");a["online"]=json!(false);return Ok(a);
+        }
         if a["expires"].as_i64().unwrap_or(0) > chrono::Utc::now().timestamp() {
             return Ok(a);
         }
@@ -122,4 +126,18 @@ pub fn session(store: &Store, net: &Net) -> Result<Value> {
     Ok(
         json!({"name":name,"uuid":uuid::Uuid::from_bytes(digest).simple().to_string(),"token":"0","online":false}),
     )
+}
+
+#[cfg(test)]
+mod offline_tests {
+    use super::*;
+    #[test]
+    fn offline_preserves_account_uuid_and_does_not_persist_dummy_token() {
+        let temp=tempfile::tempdir().unwrap();let store=Store::new(temp.path().into()).unwrap();
+        let account=json!({"name":"Player","uuid":"original-uuid","token":"private","refresh":"refresh","expires":0,"online":true});
+        write_json(&temp.path().join("account.json"),&account).unwrap();
+        let net=Net::new().unwrap();net.1.configure(&json!({"offlineMode":true}));
+        let session=session(&store,&net).unwrap();assert_eq!(session["uuid"],"original-uuid");assert_eq!(session["token"],"0");assert_eq!(session["online"],false);
+        assert_eq!(read_json(&temp.path().join("account.json")).unwrap(),account);
+    }
 }

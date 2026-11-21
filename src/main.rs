@@ -11,6 +11,9 @@ mod recovery;
 mod horizon;
 mod minecraft;
 mod net;
+mod downloads;
+mod profiles;
+mod workshop;
 mod presence;
 mod runtime;
 mod store;
@@ -119,7 +122,7 @@ async fn dispatch(
  if method=="exportDesign"{return match rfd::FileDialog::new().set_file_name("My-Nova.nova-theme.json").add_filter("Оформление Nova",&["json"]).save_file(){Some(path)=>crate::design::export(&path,args.first().unwrap_or(&Value::Null)),None=>Ok(Value::Null)};}
  if method=="importPack"&&args.first().is_none_or(Value::is_null){let Some(path)=rfd::FileDialog::new().set_title("Импорт Modrinth").add_filter("Modrinth",&["mrpack"]).pick_file()else{return Ok(Value::Null)};args=vec![json!(path)];}
  if method=="exportPack"{let id=args.first().and_then(Value::as_str).unwrap_or("");let inst=backend.store.get(id)?;let Some(path)=rfd::FileDialog::new().set_file_name(format!("{}.mrpack",s(&inst,"name"))).add_filter("Modrinth",&["mrpack"]).save_file()else{return Ok(Value::Null)};args.push(json!(path));}
- if method=="deleteInstance"{let answer=rfd::MessageDialog::new().set_title("Удалить сборку?").set_description("Файлы и миры сохранятся в deleted-instances. Восстановить их можно из папки данных Nova Rust.").set_buttons(rfd::MessageButtons::OkCancel).show();if answer!=rfd::MessageDialogResult::Ok{return Ok(Value::Null);}}
+ if method=="deleteInstance"&&!smoke(){let answer=rfd::MessageDialog::new().set_title("Удалить сборку?").set_description("Файлы и миры сохранятся в deleted-instances. Восстановить их можно из папки данных Nova Rust.").set_buttons(rfd::MessageButtons::OkCancel).show();if answer!=rfd::MessageDialogResult::Ok{return Ok(Value::Null);}}
  if method=="importLegacy"{let Some(path)=rfd::FileDialog::new().set_title("Папка данных Nova с db.json").set_directory(crate::store::app_data("nova-launcher")).pick_folder()else{return Ok(Value::Null)};args=vec![json!(path)];}
  let result=backend.call(&method,&args);if ui_method=="launcherInstall"&&result.is_ok(){if let Some(w)=app2.get_webview_window("main"){let _=w.set_focus();}}result
  }).await.map_err(|e|e.to_string())?.map_err(|e|e.to_string())

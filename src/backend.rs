@@ -29,9 +29,10 @@ impl Backend {
         let store = Store::new(root)?;
         let presence = Presence::new();
         presence.configure(&store.settings());
+        let net=Net::new()?;net.1.configure(&store.settings());
         Ok(Arc::new(Self {
             store,
-            net: Net::new()?,
+            net,
             busy: AtomicBool::new(false),
             child: Mutex::new(None),
             events,
@@ -65,15 +66,51 @@ impl Backend {
         let _guard = Guard(&self.busy);
         job()
     }
+    fn tracked<F>(&self,id:&str,label:&str,job:F)->Result<Value> where F:FnOnce()->Result<Value>{
+        self.operation(||{let root=self.store.dir(id)?;let before=crate::workshop::inventory(&root)?;let result=job();let error=result.as_ref().err().map(|e|e.to_string());if let Err(error)=crate::workshop::record(&root,label,&before,error.as_deref()){self.log(format!("Не удалось записать историю: {error}"));}result})
+    }
     pub fn call(self: &Arc<Self>, method: &str, args: &[Value]) -> Result<Value> {
         let arg = |n: usize| args.get(n).cloned().unwrap_or(Value::Null);
         let id = arg(0).as_str().unwrap_or("").to_owned();
         let log = |line| self.log(line);
         match method {
+            "workshopStatus" => {let inst=self.store.get(&id)?;let history=crate::workshop::history(&self.store,&id)?;Ok(json!({"instance":inst,"history":history}))},
+            "trialCreate" => self.operation(||crate::workshop::create_trial(&self.store,&id)),
+            "trialConfirm" => self.operation(||crate::workshop::confirm_trial(&self.store,&id)),
+            "trialPromote" => self.operation(||crate::workshop::promote_trial(&self.store,&id)),
+            "trashList" => crate::workshop::trash(&self.store),
+            "trashRestore" => self.operation(||crate::workshop::restore_trash(&self.store,&id)),
+            "storageUsage" => crate::workshop::storage(&self.store),
+            "cleanupPreview" => crate::workshop::cleanup_preview(&self.store),
+            "cleanupFiles" => self.operation(||crate::workshop::cleanup(&self.store,&arg(0))),
+            "compareInstances" => crate::workshop::compare(&self.store,&id,arg(1).as_str().unwrap_or("")),
+            "offlineReady" => self.operation(||crate::workshop::offline_ready(&self.store,&id)),
+            "screenshots" => crate::workshop::screenshots(&self.store,&id,arg(1).as_u64().unwrap_or(0) as usize),
+            "screenshotOpen" => crate::workshop::open_screenshot(&self.store,&id,arg(1).as_str().unwrap_or("")),
+            "downloads" => Ok(self.net.1.status()),
+            "downloadPause" => {self.net.1.pause(arg(0).as_bool().unwrap_or(false));Ok(Value::Null)},
+            "downloadsClear" => {self.net.1.clear();Ok(Value::Null)},
+            "launchProfile" => {
+                let inst=self.store.get(&id)?;let effective=crate::profiles::effective(&self.store.settings(),&inst);
+                let mut values=json!({});for key in crate::profiles::KEYS {values[*key]=effective[*key].clone();}
+                Ok(json!({"overrides":inst["launchSettings"],"effective":values}))
+            },
+            "saveLaunchProfile" => self.operation(|| {
+                let settings=crate::profiles::clean(&arg(1))?;
+                self.store.edit(|db|{let inst=db["instances"].as_array_mut().unwrap().iter_mut().find(|v|s(v,"id")==id).context("Сборка не найдена")?;inst["launchSettings"]=settings.clone();Ok(())})?;
+                Ok(self.store.public())
+            }),
+            "repairFiles" => self.operation(|| {
+                let inst=self.store.get(&id)?;
+                if s(&inst,"loader")=="Rust" {bail!("Файлы Horizon подготавливаются в разделе Horizon");}
+                minecraft::prepare(&self.store,&self.net,&inst,&log)?;
+                Ok(json!({"ok":true}))
+            }),
             "getDb" => Ok(self.store.public()),
             "setDb" => {
                 self.store.merge(arg(0), &arg(1))?;
                 self.presence.configure(&self.store.settings());
+                self.net.1.configure(&self.store.settings());
                 Ok(Value::Null)
             }
             "versions" => minecraft::versions(&self.store, &self.net),
@@ -81,8 +118,8 @@ impl Backend {
             "aiKeyHelp" => { open::that("https://aistudio.google.com/app/apikey")?; Ok(Value::Null) },
             "systemInfo" => Ok(crate::hardware::info()),
             "recoveryPlan" => {let inst=self.store.get(&id)?;if s(&inst,"loader")=="Rust" {return Ok(json!({"supported":false,"mods":[]}));}crate::recovery::plan(&self.store.dir(&id)?)},
-            "recoveryApply" => self.operation(||crate::recovery::apply(&self.store.dir(&id)?,&arg(1))),
-            "recoveryUndo" => self.operation(||crate::recovery::undo(&self.store.dir(&id)?)),
+            "recoveryApply" => self.tracked(&id,"Безопасный запуск",||crate::recovery::apply(&self.store.dir(&id)?,&arg(1))),
+            "recoveryUndo" => self.tracked(&id,"Возврат отключённых модов",||crate::recovery::undo(&self.store.dir(&id)?)),
             "aiStatus" => Ok(crate::ai::status(&self.store)),
             "aiConfigure" => crate::ai::configure(&self.store, &self.net, &arg(0)),
             "aiPlan" => {
@@ -90,7 +127,7 @@ impl Backend {
                 self.ai_plans.lock().unwrap()[&id]=plan.clone();
                 Ok(plan)
             },
-            "aiInstall" => self.operation(|| {
+            "aiInstall" => self.tracked(&id,"Установка подборки модов",|| {
                 let plan=self.ai_plans.lock().unwrap()[&id].clone();
                 crate::ai::install(&self.store,&self.net,&plan,&self.store.get(&id)?,arg(1).as_str().unwrap_or(""),&arg(2),&log)
             }),
@@ -104,11 +141,11 @@ impl Backend {
                     .map(|i| s(i, "name"))
                     .collect::<Vec<_>>()))
             }
-            "contentFiles" => content::files(&self.store.dir(&id)?, arg(1).as_str().unwrap_or("")),
-            "toggle" => self.operation(|| {
+            "contentFiles" => content::catalog_files(&self.store.dir(&id)?, arg(1).as_str().unwrap_or(""), &self.net),
+            "toggle" => self.tracked(&id,"Переключение мода",|| {
                 content::toggle(&self.store.dir(&id)?, "mod", arg(1).as_str().unwrap_or(""))
             }),
-            "install" => self.operation(|| {
+            "install" => {let options=arg(0);let instance_id=s(&options["inst"],"id").to_owned();self.tracked(&instance_id,"Установка контента",|| {
                 let options = arg(0);
                 let inst = self.store.get(s(&options["inst"], "id"))?;
                 Ok(json!(content::install(
@@ -119,7 +156,7 @@ impl Backend {
                     s(&options, "type"),
                     &log
                 )?))
-            }),
+            })},
             "pack" => self.operation(|| {
                 let o = arg(0);
                 content::install_pack(
@@ -144,7 +181,7 @@ impl Backend {
             "checkUpdates" => {
                 content::updates(&self.store.dir(&id)?, &self.net, &self.store.get(&id)?)
             }
-            "updateMods" => self.operation(|| {
+            "updateMods" => self.tracked(&id,"Обновление модов",|| {
                 content::apply_updates(
                     &self.store.dir(&id)?,
                     &self.net,
@@ -153,7 +190,7 @@ impl Backend {
                     &log,
                 )
             }),
-            "manageContent" => self.operation(|| {
+            "manageContent" => self.tracked(&id,"Изменение контента",|| {
                 content::manage(
                     &self.store.dir(&id)?,
                     &self.net,
@@ -171,7 +208,7 @@ impl Backend {
                 arg(1).as_bool().unwrap_or(true),
             ),
             "backups" => backups::list_backups(&self.store.dir(&id)?, "mods"),
-            "rollback" => self.operation(|| {
+            "rollback" => self.tracked(&id,"Откат модов",|| {
                 backups::restore(&self.store.dir(&id)?, "mods", arg(1).as_str().unwrap_or(""))
             }),
             "worldBackups" => backups::list_backups(&self.store.dir(&id)?, "worlds"),
@@ -185,11 +222,11 @@ impl Backend {
                     arg(1).as_str().unwrap_or(""),
                 )
             }),
-            "removeMod" => self.operation(|| {
+            "removeMod" => self.tracked(&id,"Удаление мода",|| {
                 backups::remove_mod(&self.store.dir(&id)?, arg(1).as_str().unwrap_or(""))
             }),
             "removedMods" => backups::removed(&self.store.dir(&id)?),
-            "restoreRemoved" => self.operation(|| {
+            "restoreRemoved" => self.tracked(&id,"Возврат мода",|| {
                 backups::restore_removed(&self.store.dir(&id)?, arg(1).as_str().unwrap_or(""))
             }),
             "duplicateInstance" => self.operation(|| self.store.duplicate(&id)),
@@ -281,6 +318,9 @@ impl Backend {
                 )?;
                 Ok(json!({"output":output,"code":0}))
             }),
+            "launcherRecoveryStatus" => updates::recovery_status(&self.store),
+            "launcherRecoveryOpen" => updates::open_recovery(&self.store),
+            "launcherRecoveryFolder" => updates::recovery_folder(&self.store),
             "launcherStatus" => Ok(self.update.lock().unwrap().clone()),
             "launcherCheck" => {
                 let state = updates::check(&self.net)?;
@@ -302,6 +342,7 @@ impl Backend {
                 if self.busy.load(Ordering::SeqCst) {
                     bail!("Закройте игру");
                 }
+                updates::backup_current(&self.store)?;
                 updates::install(&self.update.lock().unwrap())?;
                 Ok(Value::Null)
             }
@@ -412,7 +453,7 @@ impl Backend {
     fn record(&self, inst: &Value, start: chrono::DateTime<chrono::Utc>, code: i32) -> Result<()> {
         let mut history = self.history()?;
         let items = history.as_array_mut().context("Неправильная история")?;
-        items.insert(0,json!({"instanceId":s(inst,"id"),"name":s(inst,"name"),"version":s(inst,"version"),"loader":s(inst,"loader"),"engine":if s(inst,"loader")=="Rust"{"horizon"}else{"java"},"at":start.to_rfc3339(),"seconds":(chrono::Utc::now()-start).num_seconds(),"closed":true,"code":code}));
+        items.insert(0,json!({"instanceId":s(inst,"id"),"name":s(inst,"name"),"version":s(inst,"version"),"loader":s(inst,"loader"),"engine":if s(inst,"loader")=="Rust"{"horizon"}else{"java"},"at":start.to_rfc3339(),"seconds":(chrono::Utc::now()-start).num_seconds(),"closed":true,"code":code,"verifiedContent":self.store.get(s(inst,"id")).ok().and_then(|current|crate::workshop::signature(&self.store,&current).ok())}));
         items.truncate(100);
         write_json(&self.store.root.join("play-history.json"), &history)
     }

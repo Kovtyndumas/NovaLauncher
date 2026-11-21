@@ -25,6 +25,11 @@ if app.exists():shutil.rmtree(app)
 mac=app/'Contents/MacOS';res=app/'Contents/Resources';mac.mkdir(parents=True);res.mkdir()
 shutil.copy2(root/'target/release/nova-rust',mac/'nova-rust')
 shutil.copy2(root/'icons/icon.icns',res/'icon.icns')
+for name in ['LICENSE','NOTICE']:
+    shutil.copy2(root/name,res/name)
+notices=res/'ThirdPartyNotices';notices.mkdir()
+for path in (root/'ui/vendor').iterdir():
+    if path.name in ['UNBOUNDED-LICENSE','MONOCRAFT-LICENSE','SKINVIEW3D-LICENSE','THREE-LICENSE','SKINVIEW-UTILS-LICENSE']: shutil.copy2(path,notices/path.name)
 info={'CFBundleName':'Nova Rust','CFBundleDisplayName':'Nova Rust','CFBundleExecutable':'nova-rust','CFBundleIdentifier':'dev.ktvx.nova.rust','CFBundleIconFile':'icon.icns','CFBundleVersion':version.split('-')[0],'CFBundleShortVersionString':version,'CFBundlePackageType':'APPL','LSMinimumSystemVersion':'11.0','LSApplicationCategoryType':'public.app-category.games','NSHighResolutionCapable':True,'NSPrincipalClass':'NSApplication','NSHumanReadableCopyright':'Created By Ktvx'}
 with (app/'Contents/Info.plist').open('wb')as f:plistlib.dump(info,f)
 subprocess.run(['codesign','--force','--sign','-','--timestamp=none',str(app)],check=True)

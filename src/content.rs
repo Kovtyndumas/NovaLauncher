@@ -115,6 +115,29 @@ pub fn files(root: &Path, kind: &str) -> Result<Value> {
     files.sort_by(|a, b| s(a, "name").cmp(s(b, "name")));
     Ok(json!(files))
 }
+// Identify copied/imported JARs by exact content hashes, never by similar filenames.
+pub fn catalog_files(root: &Path, kind: &str, net: &Net) -> Result<Value> {
+    let mut items=files(root,kind)?;
+    if kind!="mod" {return Ok(items);}
+    let mut unknown=vec![];
+    for item in items.as_array().unwrap() {
+        if s(item,"project").is_empty() {
+            if let Ok(hash)=sha(&root.join("mods").join(s(item,"name")),"sha512") {unknown.push((s(item,"name").to_owned(),hash));}
+        }
+    }
+    if unknown.is_empty(){return Ok(items);}
+    let hashes=unknown.iter().map(|(_,hash)|hash).collect::<Vec<_>>();
+    // Offline/unlisted files stay available; catalogue browsing must not fail on recognition.
+    if let Ok(found)=net.post(&format!("{API}/version_files"),&json!({"hashes":hashes,"algorithm":"sha512"})) {
+        for item in items.as_array_mut().unwrap() {
+            if let Some((_,hash))=unknown.iter().find(|(name,_)|name==s(item,"name")) {
+                let version=&found[hash];let project=s(version,"project_id");
+                if !project.is_empty(){item["project"]=json!(project);}
+            }
+        }
+    }
+    Ok(items)
+}
 pub fn install(
     store: &Store,
     net: &Net,
@@ -128,6 +151,10 @@ pub fn install(
     }
     if kind == "mod" && s(inst, "loader") == "Vanilla" {
         bail!("Для модов выберите Fabric, Quilt, Forge или NeoForge");
+    }
+    let root = store.dir(s(inst, "id"))?;
+    for item in catalog_files(&root,kind,net)?.as_array().unwrap() {
+        if s(item,"project")==project {return Ok(s(item,"name").to_owned());}
     }
     let found = versions(net, project, s(inst, "version"), s(inst, "loader"), kind)?;
     let latest = found

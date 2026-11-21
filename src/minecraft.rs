@@ -516,24 +516,18 @@ pub fn arguments(
     }
     result
 }
-pub fn launch(
-    store: &Store,
-    net: &Net,
-    inst: &Value,
-    server: &str,
-    log: Arc<dyn Fn(String) + Send + Sync>,
-    started: &dyn Fn(),
-    child_slot: &Mutex<Option<std::process::Child>>,
-) -> Result<i32> {
+pub struct Prepared {
+    vanilla: Value, profile: Value, java: PathBuf, natives: PathBuf, cp: Vec<PathBuf>, asset_root: PathBuf,
+}
+pub fn prepare(store:&Store,net:&Net,inst:&Value,log:&(dyn Fn(String)+Sync))->Result<Prepared>{
     let mc = s(inst, "version");
     let game = store.dir(s(inst, "id"))?;
-    let account = auth::session(store, net)?;
     let vanilla = version(store, net, mc)?;
     let major = number(&vanilla["javaVersion"], "majorVersion", 8) as u32;
     let target_arch = runtime::game_arch(&vanilla);
-    let java = runtime::ensure(store, net, major, target_arch, &*log)?;
+    let java = runtime::ensure_for(store, net, inst, major, target_arch, log)?;
     log(format!("Java {major} · {}", java.display()));
-    let profile = loader(store, net, inst, &vanilla, &java, &*log)?;
+    let profile = loader(store, net, inst, &vanilla, &java, log)?;
     let game_arch = if target_arch == "x64" {
         "x86_64"
     } else {
@@ -548,10 +542,27 @@ pub fn launch(
         .join(format!("{mc}.jar"));
     artifact(net, &vanilla["downloads"]["client"], &jar)?;
     cp.push(jar);
-    let asset_root = assets(store, net, &vanilla, &*log)?;
+    let asset_root = assets(store, net, &vanilla, log)?;
     if s(&vanilla, "assets") == "legacy" {
         copy_tree(&asset_root, &game.join("resources"), &[])?;
     }
+    let logging=&vanilla["logging"]["client"]["file"];
+    if logging.is_object(){artifact(net,logging,&store.root.join("minecraft/assets/log_configs").join(leaf(s(logging,"id"))?))?;}
+    Ok(Prepared{vanilla,profile,java,natives,cp,asset_root})
+}
+pub fn launch(
+    store: &Store,
+    net: &Net,
+    inst: &Value,
+    server: &str,
+    log: Arc<dyn Fn(String) + Send + Sync>,
+    started: &dyn Fn(),
+    child_slot: &Mutex<Option<std::process::Child>>,
+) -> Result<i32> {
+    let mc=s(inst,"version");let game=store.dir(s(inst,"id"))?;
+    let account=auth::session(store,net)?;
+    let Prepared{vanilla,profile,java,natives,cp,asset_root}=prepare(store,net,inst,&*log)?;
+    let game_arch=if runtime::game_arch(&vanilla)=="x64" {"x86_64"}else{"aarch64"};
     let sep = if cfg!(windows) { ";" } else { ":" };
     let classpath = cp
         .iter()
@@ -603,7 +614,7 @@ pub fn launch(
     ] {
         vars.insert(k.into(), v);
     }
-    let settings = store.settings();
+    let settings = store.game_settings(inst);
     let mut args = vec![
         "-Xms512M".to_string(),
         format!("-Xmx{}G", number(&settings, "ram", 4).clamp(1, 64)),
@@ -759,4 +770,33 @@ pub fn launch(
         let _ = thread.join();
     }
     Ok(code)
+}
+
+#[cfg(all(test, unix))]
+mod preparation_tests {
+    use super::*;
+    use std::os::unix::fs::PermissionsExt;
+    #[test]
+    fn installed_game_prepares_offline_without_auth_or_touching_worlds() {
+        let temp=tempfile::tempdir().unwrap();let store=Store::new(temp.path().into()).unwrap();
+        let java=temp.path().join("fake-java");
+        fs::write(&java,b"#!/bin/sh\necho 'openjdk version \"17.0.1\"' >&2\n").unwrap();
+        fs::set_permissions(&java,fs::Permissions::from_mode(0o755)).unwrap();
+        let inst=json!({"id":"test","name":"Test","version":"1.20.1","loader":"Vanilla","launchSettings":{"java":java.to_string_lossy()}});
+        store.add(inst.clone()).unwrap();let game=store.dir("test").unwrap();
+        fs::create_dir_all(game.join("saves/World")).unwrap();fs::write(game.join("saves/World/level.dat"),b"world").unwrap();
+        fs::create_dir_all(game.join("mods")).unwrap();fs::write(game.join("mods/custom.jar"),b"custom").unwrap();
+        let version_dir=temp.path().join("minecraft/versions/1.20.1");fs::create_dir_all(&version_dir).unwrap();
+        let jar=version_dir.join("1.20.1.jar");fs::write(&jar,b"client").unwrap();let jar_hash=sha(&jar,"sha1").unwrap();
+        let assets=temp.path().join("minecraft/assets/indexes/test.json");write_json(&assets,&json!({"objects":{}})).unwrap();
+        let asset_hash=sha(&assets,"sha1").unwrap();
+        write_json(&version_dir.join("1.20.1.json"),&json!({"id":"1.20.1","javaVersion":{"majorVersion":17},"libraries":[],"assetIndex":{"id":"test","sha1":asset_hash,"size":fs::metadata(&assets).unwrap().len(),"url":"https://invalid.invalid/index"},"downloads":{"client":{"sha1":jar_hash,"size":6,"url":"https://invalid.invalid/client"}}})).unwrap();
+        let net=Net::new().unwrap();net.1.configure(&json!({"offlineMode":true}));
+        prepare(&store,&net,&inst,&|_|{}).unwrap();
+        assert!(!temp.path().join("account.json").exists());
+        fs::write(&jar,b"corrupt").unwrap();assert!(prepare(&store,&net,&inst,&|_|{}).is_err());
+        assert_eq!(fs::read(&jar).unwrap(),b"corrupt");
+        assert_eq!(fs::read(game.join("saves/World/level.dat")).unwrap(),b"world");
+        assert_eq!(fs::read(game.join("mods/custom.jar")).unwrap(),b"custom");
+    }
 }

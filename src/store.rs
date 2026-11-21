@@ -24,12 +24,17 @@ pub fn app_data(name: &str) -> PathBuf {
 impl Store {
     pub fn new(root: PathBuf) -> Result<Self> {
         fs::create_dir_all(&root)?;
-        let db = if root.join("db.json").exists() {
-            read_json(&root.join("db.json"))?
-        } else {
-            json!({"instances":[],"servers":[],"settings":{"name":"Steve","ram":4,"theme":"black","snow":false}})
-        };
+        let primary=root.join("db.json");let backup=root.join("db.backup.json");
+        let load=|path:&Path|->Result<Value>{let value=read_json(path)?;validate(&value)?;Ok(value)};
+        let db=if primary.exists()||backup.exists(){
+            match load(&primary){Ok(value)=>value,Err(primary_error)=>{
+                let recovered=load(&backup).map_err(|_|primary_error)?;
+                if primary.exists(){fs::copy(&primary,root.join(format!("db.corrupt-{}.json",uuid::Uuid::new_v4())))?;}
+                write_json(&primary,&recovered)?;recovered
+            }}
+        }else{json!({"instances":[],"servers":[],"settings":{"name":"Steve","ram":4,"theme":"black","snow":false}})};
         validate(&db)?;
+        for inst in list(&db,"instances"){crate::workshop::recover(&safe(&root.join("instances"),s(inst,"id"))?)?;}
         Ok(Self {
             root,
             db: Mutex::new(db),
@@ -48,6 +53,7 @@ impl Store {
     pub fn settings(&self) -> Value {
         self.db()["settings"].clone()
     }
+    pub fn game_settings(&self,inst:&Value)->Value {crate::profiles::effective(&self.settings(),inst)}
     pub fn edit<F>(&self, f: F) -> Result<Value>
     where
         F: FnOnce(&mut Value) -> Result<()>,
@@ -56,6 +62,7 @@ impl Store {
         let mut next = db.clone();
         f(&mut next)?;
         validate(&next)?;
+        write_json(&self.root.join("db.backup.json"), &db)?;
         write_json(&self.root.join("db.json"), &next)?;
         *db = next;
         Ok(db.clone())
@@ -142,6 +149,7 @@ impl Store {
     pub fn duplicate(&self, id: &str) -> Result<Value> {
         let mut i = self.get(id)?;
         let source = self.dir(id)?;
+        i.as_object_mut().unwrap().remove("trial");
         i["id"] = json!(uuid::Uuid::new_v4().to_string());
         i["name"] = json!(format!("{} — копия", s(&i, "name")));
         let target = self.root.join("instances").join(s(&i, "id"));
@@ -166,7 +174,9 @@ impl Store {
         Ok(json!({"instance":i,"db":self.public()}))
     }
     pub fn remove(&self, id: &str) -> Result<Value> {
+        let inst=self.get(id)?;
         let source = self.dir(id)?;
+        write_json(&source.join(".nova-deleted.json"),&json!({"instance":inst,"at":now()}))?;
         let recovery = self.root.join("deleted-instances").join(format!(
             "{}-{}",
             id,
@@ -181,7 +191,8 @@ impl Store {
                 .retain(|i| s(i, "id") != id);
             Ok(())
         }) {
-            let _ = fs::rename(&recovery, source);
+            let _ = fs::rename(&recovery, &source);
+            let _ = fs::remove_file(source.join(".nova-deleted.json"));
             return Err(e);
         }
         Ok(json!({"db":self.public(),"retained":true,"recoveryPath":recovery}))
@@ -237,8 +248,12 @@ pub fn validate(db: &Value) -> Result<()> {
     if !db["settings"].is_object() {
         bail!("Повреждены настройки");
     }
+    let settings=&db["settings"];
+    if !settings["downloadLimitKiB"].is_null() && !settings["downloadLimitKiB"].as_u64().is_some_and(|n|n<=102400) {bail!("Лимит загрузки: целое число от 0 до 102400 КБ/с");}
+    for key in ["offlineMode","notifyDownloads","notifyErrors","glassEffects"] {if !settings[key].is_null()&&!settings[key].is_boolean(){bail!("Некорректная настройка: {key}");}}
     let mut ids = std::collections::HashSet::new();
     for i in items {
+        if !i["launchSettings"].is_null() {crate::profiles::clean(&i["launchSettings"])?;}
         let id = s(i, "id");
         if id.is_empty()
             || !id

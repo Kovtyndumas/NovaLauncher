@@ -80,7 +80,7 @@ window.NovaCharacter = class {
     }
 
     if(mode==='nod'||mode==='jump'){
-      const idle=MillidaAnimations.create('idle');idle.suppressAutoLook=true;
+      const idle=NovaAnimations.create('idle');idle.suppressAutoLook=true;
       return new skinview3d.FunctionAnimation((p,t,dt)=>{
         idle.update(p,dt);
         if(mode==='nod'){
@@ -98,7 +98,7 @@ window.NovaCharacter = class {
         }
       });
     }
-    const motion=MillidaAnimations.create(mode);motion.speed=mode==='run'?.9:mode==='dance'?.78:.9;return motion;}
+    const motion=NovaAnimations.create(mode);motion.speed=mode==='run'?.9:mode==='dance'?.78:.9;return motion;}
   objects(p){return [p,...this.parts.map(k=>p.skin[k]),p.cape];}
   capture(p){return this.objects(p).map(o=>({position:o.position.clone(),quaternion:o.quaternion.clone()}));}
   set(mode, duration){
@@ -156,7 +156,7 @@ window.NovaCharacter = class {
     this.time+=dt;this.clock+=dt;
     if(this.reduced)return;
     const objects=this.objects(p),before=this.capture(p);
-    // Millida evaluates an absolute pose; restore Nova's own rig pivot positions.
+    // Restore the rig before evaluating the next absolute pose.
     p.position.set(0,0,0);p.rotation.set(0,0,0);
     for(const k of this.parts){p.skin[k].position.copy(this.base[k]);p.skin[k].rotation.set(0,0,0);}
     p.cape.rotation.set(.1885,Math.PI,0);
