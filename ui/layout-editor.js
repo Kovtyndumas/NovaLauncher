@@ -66,7 +66,7 @@ function startLayoutEdit(){
   if(action==='reset'){layoutRemember(appearanceDraft);appearanceDraft.layout=structuredClone(layoutDefaults);appearanceDraft.modules=cleanModules(null);appearanceDraft.character=true;appearanceDraft.stats=true;render();return;}
   if(action==='save'){
    appearanceSaving=true;dock.querySelectorAll('button').forEach(button=>button.disabled=true);const before=structuredClone(S.db.settings);
-   appearanceDraft.layout=settleLayout(appearanceDraft.layout);S.db.settings.appearance=cleanAppearance(appearanceDraft);S.db.settings.theme=appearanceDraft.theme;S.db.settings.glassEffects=appearanceDraft.glassEffects??S.db.settings.glassEffects??true;
+   appearanceDraft.layout=settleLayout(appearanceDraft.layout);S.db.settings.appearance=cleanAppearance(appearanceDraft);S.db.settings.theme=appearanceDraft.theme==='glass'?'light':appearanceDraft.theme;S.db.settings.glassEffects=appearanceDraft.glassEffects??S.db.settings.glassEffects??true;
    try{await persist();appearanceSaving=false;endLayoutEdit(true);toast('Расположение сохранено');}
    catch(error){S.db.settings=before;appearanceSaving=false;dock.querySelectorAll('button').forEach(button=>button.disabled=false);dock.querySelector('[role=status]').textContent=error.message;}
   }

@@ -566,7 +566,7 @@ api.on('game:log',m=>{S.log=String(m).slice(0,160);S.logs.push(String(m).trim())
 api.on('game:started',()=>{S.gameRunning=true;if(S.tab==='play')render();});
 api.on('game:closed',(code,report)=>{modulesHistoryLoaded=false;NovaRecovery.plans={};NovaRecovery.errors={};S.playing=false;S.gameRunning=false;if(report){S.crash=report;S.tab='console';}render()});
 (async()=>{
-  acceptDb(await api.getDb());if(S.db.settings.theme==='glass'){S.db.settings.theme='light';S.db.settings.glassEffects=true;await persist();}applyTheme();S.sel=S.db.instances.find(inst=>inst.id===S.db.settings.selectedInstance)?.id||S.db.instances[0]?.id;
+  acceptDb(await api.getDb());if(NovaGlass.migrate(S.db.settings))await persist();applyTheme();S.sel=S.db.instances.find(inst=>inst.id===S.db.settings.selectedInstance)?.id||S.db.instances[0]?.id;
   S.db.servers=S.db.servers||[];S.versions=[...new Set([...S.db.instances.map(i=>i.version),'1.21.1','1.20.1','1.0'])];versionOptions();snow();await loadMods();render();
   const first=S.db.settings.introSeen===false||(!S.db.settings.onboarded&&S.db.settings.introSeen!==true);
   await NovaStartup.play({first,enabled:S.db.settings.startupAnimations!==false});if(S.db.settings.introSeen!==true){S.db.settings.introSeen=true;await persist();}

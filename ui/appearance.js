@@ -28,7 +28,7 @@ function openAppearance(){
   if(data.look==='reset'){appearanceDraft={...appearanceDefaults,modules:cleanModules(null),theme:'black',glassEffects:true};previewAppearance();refreshAppearanceSheet();return;}
   if(data.look==='save'||data.look==='close'){
    appearanceSaving=true;sheet.querySelectorAll('button,input').forEach(control=>control.disabled=true);const before=structuredClone(S.db.settings);
-   if(appearanceDraft.layout)appearanceDraft.layout=settleLayout(appearanceDraft.layout);S.db.settings.appearance=cleanAppearance(appearanceDraft);S.db.settings.theme=appearanceDraft.theme;S.db.settings.glassEffects=appearanceDraft.glassEffects??S.db.settings.glassEffects??true;
+   if(appearanceDraft.layout)appearanceDraft.layout=settleLayout(appearanceDraft.layout);S.db.settings.appearance=cleanAppearance(appearanceDraft);S.db.settings.theme=appearanceDraft.theme==='glass'?'light':appearanceDraft.theme;S.db.settings.glassEffects=appearanceDraft.glassEffects??S.db.settings.glassEffects??true;
    try{await persist();appearanceSaving=false;closeAppearance();toast('Оформление сохранено');}
    catch(error){S.db.settings=before;appearanceSaving=false;sheet.querySelectorAll('button,input').forEach(control=>control.disabled=false);sheet.querySelector('.appearance-error').textContent=error.message;}
    return;
